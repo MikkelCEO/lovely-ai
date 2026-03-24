@@ -3,8 +3,20 @@ from typing import Dict, List
 
 from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.responses import Response, JSONResponse
-import ollama
+
+# =========================================================
+# SAFE OLLAMA IMPORT (AUTO INSTALL)
+# =========================================================
 import subprocess
+import sys
+
+try:
+    import ollama
+except ImportError:
+    print("ollama python package missing → installing...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "ollama"])
+    import ollama
+
 import time
 import requests
 
