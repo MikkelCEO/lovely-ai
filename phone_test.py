@@ -1,7 +1,7 @@
 import requests
 import time
 
-BASE_URL = "https://8goiy7cvw35hqp-8000.proxy.runpod.net"
+BASE_URL = "https://otcd6vzbq6sygq-8000.proxy.runpod.net"
 CALL_SID = "test_call_123"
 
 def send_speech(text):
@@ -19,6 +19,7 @@ def send_speech(text):
     print("\n--- TWIML RESPONSE ---")
     print(response.text)
 
+
 def main():
     print("Simulated call started. Type messages like a phone call.")
     print("Type 'exit' to end.\n")
@@ -33,5 +34,6 @@ def main():
         send_speech(user_input)
         time.sleep(0.5)
 
+
 if __name__ == "__main__":
-    main() 
+    main()
