@@ -13,4 +13,5 @@ git pull
 
 pip install -r phone_requirements.txt
 
-python -m uvicorn phone_main:app --host 0.0.0.0 --port 8000
+# AUTO RELOAD ON FILE CHANGE
+python -m uvicorn phone_main:app --host 0.0.0.0 --port 8000 --reload
