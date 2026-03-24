@@ -18,7 +18,8 @@ $ git diff 73cb9660082ae95323773df94e009736229f0b77
 output, run
 $ git reset --hard
 to recover.
-$ git reset --hard
+Updating code...
+d
 to recover.
 Updating code...
 From https://github.com/MikkelCEO/lovely-ai
