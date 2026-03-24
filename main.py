@@ -41,9 +41,6 @@ Do not use bullet points.
 def start_ollama():
     import shutil
 
-    # -----------------------------------------------------
-    # 1. Ensure ollama binary exists
-    # -----------------------------------------------------
     ollama_path = shutil.which("ollama")
 
     if not ollama_path:
@@ -68,9 +65,6 @@ def start_ollama():
 
     print(f"Ollama binary: {ollama_path}")
 
-    # -----------------------------------------------------
-    # 2. Ensure ollama python package exists
-    # -----------------------------------------------------
     try:
         import ollama  # noqa
     except ImportError:
@@ -78,9 +72,6 @@ def start_ollama():
         subprocess.check_call([sys.executable, "-m", "pip", "install", "ollama"])
         import ollama  # noqa
 
-    # -----------------------------------------------------
-    # 3. Start Ollama server if not running
-    # -----------------------------------------------------
     try:
         requests.get("http://localhost:11434", timeout=2)
         print("Ollama already running")
@@ -104,9 +95,6 @@ def start_ollama():
         else:
             raise RuntimeError("Ollama failed to start")
 
-    # -----------------------------------------------------
-    # 4. Ensure model exists
-    # -----------------------------------------------------
     try:
         tags = requests.get("http://localhost:11434/api/tags").json()
         models = [m["name"] for m in tags.get("models", [])]
@@ -120,7 +108,7 @@ def start_ollama():
     except Exception as e:
         print("Model check failed:", e)
 
-# ========================================================
+# =========================================================
 # APP
 # =========================================================
 app = FastAPI()
@@ -158,24 +146,40 @@ def build_twiml(say_text: str = "", action_url: str = "/twilio/respond", end_cal
     <Gather input="speech" action="{action_url}" method="POST" speechTimeout="auto" timeout="5">
         <Say voice="alice">Please speak after the tone.</Say>
     </Gather>
-    <Redirect method="POST">/twilio/respond</Redirect>
+    <Redirect method="POST">{action_url}</Redirect>
 </Response>"""
 
+# =========================================================
+# QWEN REPLY (FIXED)
+# =========================================================
 def get_qwen_reply(call_sid: str, user_text: str) -> str:
     if call_sid not in CALL_SESSIONS:
         CALL_SESSIONS[call_sid] = [{"role": "system", "content": SYSTEM_PROMPT}]
 
     CALL_SESSIONS[call_sid].append({"role": "user", "content": user_text})
 
-    response = ollama.chat(
-        model=OLLAMA_MODEL,
-        messages=CALL_SESSIONS[call_sid],
-        options={
-            "temperature": 0.2
-        }
-    )
+    try:
+        response = requests.post(
+            "http://localhost:11434/api/chat",
+            json={
+                "model": OLLAMA_MODEL,
+                "messages": CALL_SESSIONS[call_sid],
+                "options": {
+                    "temperature": 0.2
+                }
+            },
+            timeout=60
+        )
 
-    reply = response["message"]["content"].strip()
+        response.raise_for_status()
+        data = response.json()
+
+        reply = data["message"]["content"].strip()
+
+    except Exception as e:
+        print("OLLAMA ERROR:", e)
+        raise
+
     CALL_SESSIONS[call_sid].append({"role": "assistant", "content": reply})
     return reply
 
@@ -257,7 +261,12 @@ async def twilio_hangup(request: Request):
     CALL_SESSIONS.pop(call_sid, None)
     return JSONResponse({"status": "cleared", "call_sid": call_sid})
 
-# ========================================================
+# =========================================================
+# STARTUP
+# =========================================================
+start_ollama()
+
+# =========================================================
 # RUN
 # =========================================================
 if __name__ == "__main__":
