@@ -24,35 +24,66 @@ Do not use bullet points.
 """.strip()
 
 # =========================================================
-# START OLLAMA (ONLY)
+# START / INSTALL OLLAMA
 # =========================================================
 def start_ollama():
+    import shutil
+
+    # 1. Check if ollama binary exists
+    ollama_path = shutil.which("ollama")
+
+    if not ollama_path:
+        print("Ollama not found → installing...")
+
+        subprocess.run(
+            "apt-get update && apt-get install -y curl && curl -fsSL https://ollama.com/install.sh | sh",
+            shell=True,
+            check=True
+        )
+
+        ollama_path = shutil.which("ollama")
+
+        if not ollama_path:
+            raise RuntimeError("Ollama installation failed")
+
+    print(f"Ollama binary found at: {ollama_path}")
+
+    # 2. Check if ollama server is already running
     try:
         requests.get("http://127.0.0.1:11434", timeout=1)
         print("Ollama already running")
-        return
     except:
-        pass
+        print("Starting Ollama server...")
 
-    print("Starting Ollama...")
+        subprocess.Popen(
+            [ollama_path, "serve"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
 
-    subprocess.Popen(
-        ["ollama", "serve"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
+        for _ in range(15):
+            try:
+                requests.get("http://127.0.0.1:11434", timeout=1)
+                print("Ollama started")
+                break
+            except:
+                time.sleep(1)
+        else:
+            raise RuntimeError("Ollama failed to start")
 
-    for _ in range(10):
-        try:
-            requests.get("http://127.0.0.1:11434", timeout=1)
-            print("Ollama started")
-            return
-        except:
-            time.sleep(1)
+    # 3. Ensure model exists (pull if missing)
+    try:
+        tags = requests.get("http://127.0.0.1:11434/api/tags").json()
+        models = [m["name"] for m in tags.get("models", [])]
 
-    raise RuntimeError("Ollama failed to start")
+        if OLLAMA_MODEL not in models:
+            print(f"Model {OLLAMA_MODEL} not found → pulling...")
+            subprocess.run([ollama_path, "pull", OLLAMA_MODEL], check=True)
+        else:
+            print(f"Model {OLLAMA_MODEL} already available")
 
-start_ollama()
+    except Exception as e:
+        print("Model check failed:", e)
 
 # =========================================================
 # APP
