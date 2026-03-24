@@ -1,8 +1,25 @@
+# =========================================================
+# AUTO INSTALL REQUIRED PACKAGES (INCLUDING WEBSOCKETS)
+# =========================================================
 import importlib
 import subprocess
 import sys
-import traceback
-import os
+
+def ensure_package(package_name, import_name=None):
+    import_name = import_name or package_name
+    try:
+        importlib.import_module(import_name)
+    except ImportError:
+        print(f"Installing missing package: {package_name}")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package_name])
+
+# REQUIRED FOR WEBSOCKET SUPPORT IN UVICORN
+ensure_package("websockets")
+ensure_package("uvicorn[standard]")
+
+# =========================================================
+# YOUR NORMAL IMPORTS BELOW
+# =========================================================
 
 # =========================================================
 # AUTO INSTALL DEPENDENCIES
