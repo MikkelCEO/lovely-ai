@@ -5,19 +5,19 @@ Already up to date.
 From https://github.com/MikkelCEO/lovely-ai
  + 1016d95...472497f main       -> origin/main  (forced update)
 Updating code...
-y up to date.
-Updating code...
 warning: fetch updated the current branch head.
 fast-forwarding your working tree from
-commit f747cbb83838c458914f6c5fe75e3627a1e0ea83.
+commit 73cb9660082ae95323773df94e009736229f0b77.
 error: Your local changes to the following files would be overwritten by merge:
 	gitpull.log
 Please commit your changes or stash them before you merge.
 Aborting
 fatal: Cannot fast-forward your working tree.
 After making sure that you saved anything precious from
-$ git diff f747cbb83838c458914f6c5fe75e3627a1e0ea83
+$ git diff 73cb9660082ae95323773df94e009736229f0b77
 output, run
+$ git reset --hard
+to recover.
 $ git reset --hard
 to recover.
 Updating code...
