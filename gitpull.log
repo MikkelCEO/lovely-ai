@@ -19,13 +19,16 @@ output, run
 $ git reset --hard
 to recover.
 Updating code...
-d
+warning: fetch updated the current branch head.
+fast-forwarding your working tree from
+commit a3a89bad13ea727fedcca0c9880df0845cb531d4.
+error: Your local changes to the following files would be overwritten by merge:
+	gitpull.log
+Please commit your changes or stash them before you merge.
+Aborting
+fatal: Cannot fast-forward your working tree.
+After making sure that you saved anything precious from
+$ git diff a3a89bad13ea727fedcca0c9880df0845cb531d4
+output, run
+$ git reset --hard
 to recover.
-Updating code...
-From https://github.com/MikkelCEO/lovely-ai
- + b08a226...472497f main       -> origin/main  (forced update)
-Already up to date.
-Updating code...
-Already up to date.
-Updating code...
-Already up to date.
