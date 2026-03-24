@@ -13,5 +13,8 @@ git pull
 
 pip install -r phone_requirements.txt
 
-# AUTO RELOAD ON FILE CHANGE
+# Pull model if missing
+ollama list | grep -q "qwen2.5:3b" || ollama pull qwen2.5:3b
+
+# Start server with auto-reload
 python -m uvicorn phone_main:app --host 0.0.0.0 --port 8000 --reload
