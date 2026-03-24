@@ -36,32 +36,53 @@ Do not use bullet points.
 """.strip()
 
 # =========================================================
-# START / INSTALL OLLAMA
+# START / INSTALL OLLAMA (FULL SELF-HEALING)
 # =========================================================
 def start_ollama():
     import shutil
 
+    # -----------------------------------------------------
+    # 1. Ensure ollama binary exists
+    # -----------------------------------------------------
     ollama_path = shutil.which("ollama")
 
     if not ollama_path:
         print("Ollama not found → installing...")
 
         subprocess.run(
-            "apt-get update && apt-get install -y curl && curl -fsSL https://ollama.com/install.sh | sh",
+            "apt-get update && apt-get install -y curl",
             shell=True,
             check=True
         )
 
-        ollama_path = shutil.which("ollama")
+        subprocess.run(
+            "curl -fsSL https://ollama.com/install.sh | sh",
+            shell=True,
+            check=True
+        )
 
-        if not ollama_path:
+        ollama_path = shutil.which("ollama") or "/usr/local/bin/ollama"
+
+        if not os.path.exists(ollama_path):
             raise RuntimeError("Ollama installation failed")
 
-    print(f"Ollama binary found at: {ollama_path}")
+    print(f"Ollama binary: {ollama_path}")
 
-    # Check if already running
+    # -----------------------------------------------------
+    # 2. Ensure ollama python package exists
+    # -----------------------------------------------------
     try:
-        requests.get("http://localhost:11434", timeout=1)
+        import ollama  # noqa
+    except ImportError:
+        print("Installing ollama python package...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "ollama"])
+        import ollama  # noqa
+
+    # -----------------------------------------------------
+    # 3. Start Ollama server if not running
+    # -----------------------------------------------------
+    try:
+        requests.get("http://localhost:11434", timeout=2)
         print("Ollama already running")
     except:
         print("Starting Ollama server...")
@@ -73,9 +94,9 @@ def start_ollama():
             stderr=subprocess.DEVNULL
         )
 
-        for _ in range(30):
+        for _ in range(40):
             try:
-                requests.get("http://localhost:11434", timeout=1)
+                requests.get("http://localhost:11434", timeout=2)
                 print("Ollama started")
                 break
             except:
@@ -83,16 +104,18 @@ def start_ollama():
         else:
             raise RuntimeError("Ollama failed to start")
 
-    # Ensure model exists
+    # -----------------------------------------------------
+    # 4. Ensure model exists
+    # -----------------------------------------------------
     try:
         tags = requests.get("http://localhost:11434/api/tags").json()
         models = [m["name"] for m in tags.get("models", [])]
 
         if OLLAMA_MODEL not in models:
-            print(f"Model {OLLAMA_MODEL} not found → pulling...")
+            print(f"Pulling model: {OLLAMA_MODEL}")
             subprocess.run([ollama_path, "pull", OLLAMA_MODEL], check=True)
         else:
-            print(f"Model {OLLAMA_MODEL} already available")
+            print(f"Model already present: {OLLAMA_MODEL}")
 
     except Exception as e:
         print("Model check failed:", e)
