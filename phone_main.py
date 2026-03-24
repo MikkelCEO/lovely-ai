@@ -1,121 +1,76 @@
 import os
 from typing import Dict, List
 
-from fastapi import FastAPI, UploadFile, File, Request
+from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import Response, JSONResponse
 
-# =========================================================
-# SAFE OLLAMA IMPORT (AUTO INSTALL)
-# =========================================================
 import subprocess
-import sys
-
-try:
-    import ollama
-except ImportError:
-    print("ollama python package missing → installing...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "ollama"])
-    import ollama
-
-import time
 import requests
 
 # =========================================================
-# CONFIG
+# LOAD FILES
 # =========================================================
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
-HOST = os.getenv("HOST", "0.0.0.0")
-PORT = int(os.getenv("PORT", "8000"))
+BASE_DIR = os.path.dirname(__file__)
 
-SYSTEM_PROMPT = """
-You are a phone assistant.
-Reply naturally, clearly, and briefly.
-Keep answers short enough to sound good when spoken aloud.
-If the caller asks multiple things, answer in the simplest possible way.
-Do not use bullet points.
-""".strip()
+def load_file(filename: str, default: str = "") -> str:
+    path = os.path.join(BASE_DIR, filename)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    return default
+
+def load_settings():
+    settings = {}
+    path = os.path.join(BASE_DIR, "phone_settings.txt")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                if "=" in line:
+                    k, v = line.strip().split("=", 1)
+                    settings[k.strip()] = v.strip()
+    return settings
+
+SYSTEM_PROMPT = load_file("phone_prompt.txt", "You are a helpful assistant.")
+SETTINGS = load_settings()
+
+OLLAMA_MODEL = SETTINGS.get("model", "qwen2.5:3b")
+TEMPERATURE = float(SETTINGS.get("temperature", "0.2"))
+TIMEOUT = int(SETTINGS.get("timeout", "60"))
 
 # =========================================================
-# START / INSTALL OLLAMA (FULL SELF-HEALING)
+# START OLLAMA
 # =========================================================
 def start_ollama():
-    import shutil
-
-    ollama_path = shutil.which("ollama")
-
-    if not ollama_path:
-        print("Ollama not found → installing...")
-
-        subprocess.run(
-            "apt-get update && apt-get install -y curl",
-            shell=True,
-            check=True
-        )
-
-        subprocess.run(
-            "curl -fsSL https://ollama.com/install.sh | sh",
-            shell=True,
-            check=True
-        )
-
-        ollama_path = shutil.which("ollama") or "/usr/local/bin/ollama"
-
-        if not os.path.exists(ollama_path):
-            raise RuntimeError("Ollama installation failed")
-
-    print(f"Ollama binary: {ollama_path}")
-
-    try:
-        import ollama  # noqa
-    except ImportError:
-        print("Installing ollama python package...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "ollama"])
-        import ollama  # noqa
-
     try:
         requests.get("http://localhost:11434", timeout=2)
         print("Ollama already running")
+        return
     except:
-        print("Starting Ollama server...")
+        pass
 
-        subprocess.Popen(
-            [ollama_path, "serve"],
-            env={**os.environ, "OLLAMA_HOST": "0.0.0.0:11434"},
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
+    print("Starting Ollama...")
 
-        for _ in range(40):
-            try:
-                requests.get("http://localhost:11434", timeout=2)
-                print("Ollama started")
-                break
-            except:
-                time.sleep(1)
-        else:
-            raise RuntimeError("Ollama failed to start")
+    subprocess.Popen(
+        ["ollama", "serve"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
 
-    try:
-        tags = requests.get("http://localhost:11434/api/tags").json()
-        models = [m["name"] for m in tags.get("models", [])]
+    import time
+    for _ in range(30):
+        try:
+            requests.get("http://localhost:11434", timeout=2)
+            print("Ollama started")
+            return
+        except:
+            time.sleep(1)
 
-        if OLLAMA_MODEL not in models:
-            print(f"Pulling model: {OLLAMA_MODEL}")
-            subprocess.run([ollama_path, "pull", OLLAMA_MODEL], check=True)
-        else:
-            print(f"Model already present: {OLLAMA_MODEL}")
-
-    except Exception as e:
-        print("Model check failed:", e)
+    raise RuntimeError("Ollama failed to start")
 
 # =========================================================
 # APP
 # =========================================================
 app = FastAPI()
-
-# =========================================================
-# IN-MEMORY CALL SESSIONS
-# =========================================================
 CALL_SESSIONS: Dict[str, List[dict]] = {}
 
 # =========================================================
@@ -150,7 +105,7 @@ def build_twiml(say_text: str = "", action_url: str = "/twilio/respond", end_cal
 </Response>"""
 
 # =========================================================
-# QWEN REPLY (FIXED)
+# LLM
 # =========================================================
 def get_qwen_reply(call_sid: str, user_text: str) -> str:
     if call_sid not in CALL_SESSIONS:
@@ -158,27 +113,18 @@ def get_qwen_reply(call_sid: str, user_text: str) -> str:
 
     CALL_SESSIONS[call_sid].append({"role": "user", "content": user_text})
 
-    try:
-        response = requests.post(
-            "http://localhost:11434/api/chat",
-            json={
-                "model": OLLAMA_MODEL,
-                "messages": CALL_SESSIONS[call_sid],
-                "options": {
-                    "temperature": 0.2
-                }
-            },
-            timeout=60
-        )
+    response = requests.post(
+        "http://localhost:11434/api/chat",
+        json={
+            "model": OLLAMA_MODEL,
+            "messages": CALL_SESSIONS[call_sid],
+            "options": {"temperature": TEMPERATURE}
+        },
+        timeout=TIMEOUT
+    )
 
-        response.raise_for_status()
-        data = response.json()
-
-        reply = data["message"]["content"].strip()
-
-    except Exception as e:
-        print("OLLAMA ERROR:", e)
-        raise
+    data = response.json()
+    reply = data["message"]["content"].strip()
 
     CALL_SESSIONS[call_sid].append({"role": "assistant", "content": reply})
     return reply
@@ -188,87 +134,44 @@ def get_qwen_reply(call_sid: str, user_text: str) -> str:
 # =========================================================
 @app.get("/")
 def root():
-    return {
-        "status": "ok",
-        "mode": "twilio-voice-qwen",
-        "model": OLLAMA_MODEL
-    }
-
-@app.post("/upload")
-async def upload(file: UploadFile = File(...)):
-    content = await file.read()
-    with open("main.py", "wb") as f:
-        f.write(content)
-    return {"status": "updated"}
+    return {"status": "ok", "model": OLLAMA_MODEL}
 
 @app.api_route("/twilio", methods=["GET", "POST"])
 async def twilio_start():
-    greeting = "Hello. You are connected. How may I help you?"
-    twiml = build_twiml(say_text=greeting, action_url="/twilio/respond", end_call=False)
-    return Response(content=twiml, media_type="application/xml")
+    return Response(build_twiml("Hello. How may I help you?"), media_type="application/xml")
 
 @app.post("/twilio/respond")
 async def twilio_respond(request: Request):
     form = await request.form()
-
     call_sid = str(form.get("CallSid", "default_call"))
-    speech_result = str(form.get("SpeechResult", "")).strip()
+    speech = str(form.get("SpeechResult", "")).strip()
 
-    print(f"CallSid: {call_sid}")
-    print(f"User said: {speech_result}")
+    if not speech:
+        return Response(build_twiml("Please say that again."), media_type="application/xml")
 
-    if not speech_result:
-        twiml = build_twiml(
-            say_text="I did not hear anything. Please say that again.",
-            action_url="/twilio/respond",
-            end_call=False
-        )
-        return Response(content=twiml, media_type="application/xml")
-
-    lowered = speech_result.lower()
-    if lowered in {"goodbye", "bye", "hang up", "stop", "end call"}:
-        twiml = build_twiml(
-            say_text="Goodbye.",
-            end_call=True
-        )
+    if speech.lower() in {"bye", "goodbye", "stop"}:
         CALL_SESSIONS.pop(call_sid, None)
-        return Response(content=twiml, media_type="application/xml")
+        return Response(build_twiml("Goodbye.", end_call=True), media_type="application/xml")
+
+    reply = get_qwen_reply(call_sid, speech)
+    return Response(build_twiml(reply), media_type="application/xml")
+
+# =========================================================
+# WEBSOCKET
+# =========================================================
+@app.websocket("/audio")
+async def audio_stream(websocket: WebSocket):
+    await websocket.accept()
+    print("Audio stream connected")
 
     try:
-        reply = get_qwen_reply(call_sid, speech_result)
-        print(f"Agent: {reply}")
-
-        twiml = build_twiml(
-            say_text=reply,
-            action_url="/twilio/respond",
-            end_call=False
-        )
-        return Response(content=twiml, media_type="application/xml")
-
+        while True:
+            data = await websocket.receive_text()
+            print("Received:", data)
     except Exception as e:
-        print("Error:", e)
-        twiml = build_twiml(
-            say_text="Sorry, something went wrong. Please try again.",
-            action_url="/twilio/respond",
-            end_call=False
-        )
-        return Response(content=twiml, media_type="application/xml")
-
-@app.post("/twilio/hangup")
-async def twilio_hangup(request: Request):
-    form = await request.form()
-    call_sid = str(form.get("CallSid", "default_call"))
-    CALL_SESSIONS.pop(call_sid, None)
-    return JSONResponse({"status": "cleared", "call_sid": call_sid})
+        print("Audio stream closed:", e)
 
 # =========================================================
-# STARTUP
+# START
 # =========================================================
 start_ollama()
-
-# =========================================================
-# RUN
-# =========================================================
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host=HOST, port=PORT)
