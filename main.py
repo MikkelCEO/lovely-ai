@@ -12,4 +12,4 @@ def ensure_package(package_name, import_name=None):
         subprocess.check_call([sys.executable, "-m", "pip", "install", package_name])
 
 ensure_package("websockets")
-# --- END AUTO INSTALL ---
+# --- END AUTO INSTALL --- 
