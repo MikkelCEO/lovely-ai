@@ -1,11 +1,11 @@
 #!/bin/bash
 
-cd /volume1/Projects/ai-chat/Phone
+cd /workspace/Phone
 
-# Pull latest code
+apt-get update && apt-get install -y curl zstd
+
 git pull
 
-# Install dependencies (NAS-safe)
-pip install -r phone_requirements.txt --break-system-packages
+pip install -r phone_requirements.txt
 
 python -m uvicorn phone_main:app --host 0.0.0.0 --port 8000
