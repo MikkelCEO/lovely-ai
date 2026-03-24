@@ -38,7 +38,7 @@ TEMPERATURE = float(SETTINGS.get("temperature", "0.2"))
 TIMEOUT = int(SETTINGS.get("timeout", "60"))
 
 # =========================================================
-# START OLLAMA (NO INSTALL)
+# START OLLAMA
 # =========================================================
 def start_ollama():
     try:
@@ -127,16 +127,12 @@ def get_qwen_reply(call_sid: str, user_text: str) -> str:
         data = response.json()
         print("OLLAMA RAW:", data)
 
-        # Handle different response formats safely
         if "message" in data and "content" in data["message"]:
             reply = data["message"]["content"].strip()
-
         elif "response" in data:
             reply = data["response"].strip()
-
         elif "error" in data:
             reply = f"Error: {data['error']}"
-
         else:
             reply = "Error: unexpected response from model"
 
