@@ -124,7 +124,7 @@ def get_qwen_reply(call_sid: str, user_text: str) -> str:
     )
 
     data = response.json()
-    reply = data["message"]["content"].strip()
+    reply = data.get("message", {}).get("content", "Error: no response")
 
     CALL_SESSIONS[call_sid].append({"role": "assistant", "content": reply})
     return reply
