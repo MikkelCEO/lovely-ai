@@ -44,16 +44,35 @@ Do not use bullet points.
 """.strip()
 
 # =========================================================
-# START OLLAMA AUTOMATICALLY
+# ENSURE OLLAMA INSTALLED + RUNNING (SAFE)
 # =========================================================
 import subprocess
 import time
 import requests
+import shutil
+
+def install_ollama():
+    if shutil.which("ollama"):
+        print("Ollama already installed")
+        return
+
+    print("Installing Ollama...")
+
+    subprocess.run(
+        "apt-get update && apt-get install -y zstd",
+        shell=True,
+        check=True
+    )
+
+    subprocess.run(
+        "curl -fsSL https://ollama.com/install.sh | sh",
+        shell=True,
+        check=True
+    )
 
 def start_ollama():
     try:
-        # check if already running
-        requests.get("http://127.0.0.1:11434")
+        requests.get("http://127.0.0.1:11434", timeout=1)
         print("Ollama already running")
         return
     except:
@@ -68,17 +87,32 @@ def start_ollama():
     )
 
     # wait until ready
-    for _ in range(10):
+    for _ in range(20):
         try:
-            requests.get("http://127.0.0.1:11434")
+            requests.get("http://127.0.0.1:11434", timeout=1)
             print("Ollama started")
             return
         except:
             time.sleep(1)
 
-    print("WARNING: Ollama did not start")
+    raise RuntimeError("Ollama failed to start")
 
+def ensure_model(model="qwen2.5:3b"):
+    try:
+        r = requests.get("http://127.0.0.1:11434/api/tags")
+        if model in r.text:
+            print(f"Model {model} already available")
+            return
+    except:
+        pass
+
+    print(f"Pulling model {model}...")
+    subprocess.run(["ollama", "pull", model], check=True)
+
+# RUN ON START
+install_ollama()
 start_ollama()
+ensure_model("qwen2.5:3b")
 
 # =========================================================
 # APP
