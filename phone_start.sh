@@ -12,7 +12,7 @@ fi
 # Start Ollama
 ollama serve > /dev/null 2>&1 &
 
-# Wait for Ollama to be ready
+# Wait for Ollama
 sleep 5
 
 git pull
@@ -23,4 +23,4 @@ pip install -r phone_requirements.txt
 ollama list | grep -q "qwen2.5:3b" || ollama pull qwen2.5:3b
 
 # Start API
-python -m uvicorn phone_main:app --host 0.0.0.0 --port 8
+python -m uvicorn phone_main:app --host 0.0.0.0 --port 8000 --reload
