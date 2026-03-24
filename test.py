@@ -31,7 +31,7 @@ import sounddevice as sd
 # =========================================================
 # CONFIG
 # =========================================================
-WS_URL = "wss://w21vom80cinkwl-8001.proxy.runpod.net/audio"
+WS_URL = "ws://195.26.232.177:57011/audio"
 RATE = 8000
 CHUNK = 160
 
