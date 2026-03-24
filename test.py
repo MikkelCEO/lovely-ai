@@ -1,52 +1,94 @@
+import importlib
+import subprocess
+import sys
+import traceback
+
+# =========================================================
+# AUTO INSTALL DEPENDENCIES
+# =========================================================
+def ensure_package(package_name, import_name=None):
+    import_name = import_name or package_name
+    try:
+        importlib.import_module(import_name)
+    except ImportError:
+        print(f"Installing missing package: {package_name}")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package_name])
+
+ensure_package("websocket-client", "websocket")
+ensure_package("pyaudio")
+
+# =========================================================
+# IMPORTS (AFTER INSTALL)
+# =========================================================
 import websocket
 import json
 import base64
 import pyaudio
 import audioop
 
+# =========================================================
+# CONFIG
+# =========================================================
 WS_URL = "ws://localhost:8000/audio"
-
-CHUNK = 160  # Twilio uses 20ms = 160 samples @ 8kHz
+CHUNK = 160
 RATE = 8000
 
-p = pyaudio.PyAudio()
+# =========================================================
+# MAIN
+# =========================================================
+def main():
+    print("Starting mic test client...")
+    print(f"Connecting to {WS_URL}")
 
-stream = p.open(
-    format=pyaudio.paInt16,
-    channels=1,
-    rate=RATE,
-    input=True,
-    frames_per_buffer=CHUNK
-)
+    p = pyaudio.PyAudio()
 
-ws = websocket.WebSocket()
-ws.connect(WS_URL)
+    stream = p.open(
+        format=pyaudio.paInt16,
+        channels=1,
+        rate=RATE,
+        input=True,
+        frames_per_buffer=CHUNK
+    )
 
-print("Connected to server")
+    ws = websocket.WebSocket()
+    ws.connect(WS_URL)
 
-# Start event
-ws.send(json.dumps({"event": "start"}))
+    print("Connected. Speak into your microphone.")
+    print("Press CTRL+C to stop.\n")
 
-try:
-    while True:
-        data = stream.read(CHUNK)
+    ws.send(json.dumps({"event": "start"}))
 
-        # Convert PCM → mulaw
-        mulaw = audioop.lin2ulaw(data, 2)
+    try:
+        while True:
+            data = stream.read(CHUNK, exception_on_overflow=False)
 
-        payload = base64.b64encode(mulaw).decode()
+            mulaw = audioop.lin2ulaw(data, 2)
+            payload = base64.b64encode(mulaw).decode()
 
-        ws.send(json.dumps({
-            "event": "media",
-            "media": {"payload": payload}
-        }))
+            ws.send(json.dumps({
+                "event": "media",
+                "media": {"payload": payload}
+            }))
 
-except KeyboardInterrupt:
-    print("Stopping...")
+    except KeyboardInterrupt:
+        print("\nStopping...")
 
-ws.send(json.dumps({"event": "stop"}))
-ws.close()
+    finally:
+        ws.send(json.dumps({"event": "stop"}))
+        ws.close()
 
-stream.stop_stream()
-stream.close()
-p.terminate()
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+
+# =========================================================
+# ENTRY POINT (DOUBLE CLICK SAFE)
+# =========================================================
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        print("\nERROR OCCURRED:\n")
+        traceback.print_exc()
+
+    input("\nPress ENTER to exit...")
