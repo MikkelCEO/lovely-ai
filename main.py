@@ -1,1 +1,1 @@
-pip install "uvicorn[standard]"
+pip install websockets
