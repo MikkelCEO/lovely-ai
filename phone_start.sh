@@ -8,4 +8,3 @@ git pull
 # Install dependencies (NAS-safe)
 pip install -r phone_requirements.txt --break-system-packages
 
-# Start auto-update loop
