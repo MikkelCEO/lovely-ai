@@ -19,6 +19,7 @@ ensure_package("fastapi")
 ensure_package("uvicorn")
 ensure_package("python-multipart", "multipart")
 ensure_package("ollama")
+ensure_package("requests")
 
 # =========================================================
 # IMPORTS
@@ -41,6 +42,43 @@ Keep answers short enough to sound good when spoken aloud.
 If the caller asks multiple things, answer in the simplest possible way.
 Do not use bullet points.
 """.strip()
+
+# =========================================================
+# START OLLAMA AUTOMATICALLY
+# =========================================================
+import subprocess
+import time
+import requests
+
+def start_ollama():
+    try:
+        # check if already running
+        requests.get("http://127.0.0.1:11434")
+        print("Ollama already running")
+        return
+    except:
+        pass
+
+    print("Starting Ollama...")
+
+    subprocess.Popen(
+        ["ollama", "serve"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+
+    # wait until ready
+    for _ in range(10):
+        try:
+            requests.get("http://127.0.0.1:11434")
+            print("Ollama started")
+            return
+        except:
+            time.sleep(1)
+
+    print("WARNING: Ollama did not start")
+
+start_ollama()
 
 # =========================================================
 # APP
