@@ -41,7 +41,6 @@ Do not use bullet points.
 def start_ollama():
     import shutil
 
-    # 1. Check if ollama binary exists
     ollama_path = shutil.which("ollama")
 
     if not ollama_path:
@@ -60,22 +59,23 @@ def start_ollama():
 
     print(f"Ollama binary found at: {ollama_path}")
 
-    # 2. Check if ollama server is already running
+    # Check if already running
     try:
-        requests.get("http://127.0.0.1:11434", timeout=1)
+        requests.get("http://localhost:11434", timeout=1)
         print("Ollama already running")
     except:
         print("Starting Ollama server...")
 
         subprocess.Popen(
             [ollama_path, "serve"],
+            env={**os.environ, "OLLAMA_HOST": "0.0.0.0:11434"},
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
 
-        for _ in range(15):
+        for _ in range(30):
             try:
-                requests.get("http://127.0.0.1:11434", timeout=1)
+                requests.get("http://localhost:11434", timeout=1)
                 print("Ollama started")
                 break
             except:
@@ -83,9 +83,9 @@ def start_ollama():
         else:
             raise RuntimeError("Ollama failed to start")
 
-    # 3. Ensure model exists (pull if missing)
+    # Ensure model exists
     try:
-        tags = requests.get("http://127.0.0.1:11434/api/tags").json()
+        tags = requests.get("http://localhost:11434/api/tags").json()
         models = [m["name"] for m in tags.get("models", [])]
 
         if OLLAMA_MODEL not in models:
