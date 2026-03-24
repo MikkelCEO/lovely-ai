@@ -2,6 +2,7 @@ import importlib
 import subprocess
 import sys
 import traceback
+import os
 
 # =========================================================
 # AUTO INSTALL DEPENDENCIES
@@ -15,40 +16,42 @@ def ensure_package(package_name, import_name=None):
         subprocess.check_call([sys.executable, "-m", "pip", "install", package_name])
 
 ensure_package("websocket-client", "websocket")
-ensure_package("pyaudio")
+ensure_package("sounddevice")
+ensure_package("numpy")
 
 # =========================================================
-# IMPORTS (AFTER INSTALL)
+# IMPORTS
 # =========================================================
 import websocket
 import json
 import base64
-import pyaudio
-import audioop
+import numpy as np
+import sounddevice as sd
 
 # =========================================================
 # CONFIG
 # =========================================================
 WS_URL = "ws://localhost:8000/audio"
-CHUNK = 160
 RATE = 8000
+CHUNK = 160
+
+# =========================================================
+# PCM → MULAW (replacement for audioop)
+# =========================================================
+def pcm_to_mulaw(signal, mu=255):
+    signal = signal.astype(np.float32) / 32768.0
+    magnitude = np.log1p(mu * np.abs(signal)) / np.log1p(mu)
+    signal = np.sign(signal) * magnitude
+    return ((signal + 1) / 2 * mu).astype(np.uint8)
 
 # =========================================================
 # MAIN
 # =========================================================
 def main():
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
     print("Starting mic test client...")
     print(f"Connecting to {WS_URL}")
-
-    p = pyaudio.PyAudio()
-
-    stream = p.open(
-        format=pyaudio.paInt16,
-        channels=1,
-        rate=RATE,
-        input=True,
-        frames_per_buffer=CHUNK
-    )
 
     ws = websocket.WebSocket()
     ws.connect(WS_URL)
@@ -59,16 +62,21 @@ def main():
     ws.send(json.dumps({"event": "start"}))
 
     try:
-        while True:
-            data = stream.read(CHUNK, exception_on_overflow=False)
+        def callback(indata, frames, time, status):
+            audio = indata[:, 0]  # mono
+            pcm = (audio * 32768).astype(np.int16)
 
-            mulaw = audioop.lin2ulaw(data, 2)
-            payload = base64.b64encode(mulaw).decode()
+            mulaw = pcm_to_mulaw(pcm)
+            payload = base64.b64encode(mulaw.tobytes()).decode()
 
             ws.send(json.dumps({
                 "event": "media",
                 "media": {"payload": payload}
             }))
+
+        with sd.InputStream(samplerate=RATE, channels=1, callback=callback, blocksize=CHUNK):
+            while True:
+                pass
 
     except KeyboardInterrupt:
         print("\nStopping...")
@@ -77,12 +85,8 @@ def main():
         ws.send(json.dumps({"event": "stop"}))
         ws.close()
 
-        stream.stop_stream()
-        stream.close()
-        p.terminate()
-
 # =========================================================
-# ENTRY POINT (DOUBLE CLICK SAFE)
+# ENTRY POINT
 # =========================================================
 if __name__ == "__main__":
     try:
