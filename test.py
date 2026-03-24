@@ -28,7 +28,7 @@ def ensure_package(package_name, import_name=None):
 ensure_package("websockets")
 ensure_package("uvicorn[standard]")
 
-# =========================================================
+# ========================================================
 # AUTO INSTALL DEPENDENCIES
 # =========================================================
 def ensure_package(package_name, import_name=None):
