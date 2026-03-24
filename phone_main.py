@@ -2,7 +2,7 @@ import os
 from typing import Dict, List
 
 from fastapi import FastAPI, Request, WebSocket
-from fastapi.responses import Response, JSONResponse
+from fastapi.responses import Response
 
 import subprocess
 import requests
@@ -38,7 +38,7 @@ TEMPERATURE = float(SETTINGS.get("temperature", "0.2"))
 TIMEOUT = int(SETTINGS.get("timeout", "60"))
 
 # =========================================================
-# START OLLAMA
+# START OLLAMA (NO INSTALL)
 # =========================================================
 def start_ollama():
     try:
@@ -113,18 +113,36 @@ def get_qwen_reply(call_sid: str, user_text: str) -> str:
 
     CALL_SESSIONS[call_sid].append({"role": "user", "content": user_text})
 
-    response = requests.post(
-        "http://localhost:11434/api/chat",
-        json={
-            "model": OLLAMA_MODEL,
-            "messages": CALL_SESSIONS[call_sid],
-            "options": {"temperature": TEMPERATURE}
-        },
-        timeout=TIMEOUT
-    )
+    try:
+        response = requests.post(
+            "http://localhost:11434/api/chat",
+            json={
+                "model": OLLAMA_MODEL,
+                "messages": CALL_SESSIONS[call_sid],
+                "options": {"temperature": TEMPERATURE}
+            },
+            timeout=TIMEOUT
+        )
 
-    data = response.json()
-    reply = data.get("message", {}).get("content", "Error: no response")
+        data = response.json()
+        print("OLLAMA RAW:", data)
+
+        # Handle different response formats safely
+        if "message" in data and "content" in data["message"]:
+            reply = data["message"]["content"].strip()
+
+        elif "response" in data:
+            reply = data["response"].strip()
+
+        elif "error" in data:
+            reply = f"Error: {data['error']}"
+
+        else:
+            reply = "Error: unexpected response from model"
+
+    except Exception as e:
+        print("OLLAMA ERROR:", e)
+        reply = "Sorry, something went wrong."
 
     CALL_SESSIONS[call_sid].append({"role": "assistant", "content": reply})
     return reply
