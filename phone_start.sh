@@ -23,4 +23,4 @@ pip install -r phone_requirements.txt
 ollama list | grep -q "qwen2.5:3b" || ollama pull qwen2.5:3b
 
 # Start API
-python -m uvicorn phone_main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn phone_main:app --host 0.0.0.0 --port 8
