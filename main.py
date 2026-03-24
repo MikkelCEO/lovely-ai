@@ -1,37 +1,17 @@
-import importlib
-import subprocess
-import sys
 import os
 from typing import Dict, List
 
-# =========================================================
-# AUTO INSTALL MISSING PACKAGES
-# =========================================================
-def ensure_package(package_name: str, import_name: str = None):
-    import_name = import_name or package_name
-    try:
-        importlib.import_module(import_name)
-    except ImportError:
-        print(f"Installing missing package: {package_name}")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", package_name])
-
-ensure_package("fastapi")
-ensure_package("uvicorn")
-ensure_package("python-multipart", "multipart")
-ensure_package("ollama")
-ensure_package("requests")
-
-# =========================================================
-# IMPORTS
-# =========================================================
 from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.responses import Response, JSONResponse
 import ollama
+import subprocess
+import time
+import requests
 
 # =========================================================
 # CONFIG
 # =========================================================
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8000"))
 
@@ -44,32 +24,8 @@ Do not use bullet points.
 """.strip()
 
 # =========================================================
-# ENSURE OLLAMA INSTALLED + RUNNING (SAFE)
+# START OLLAMA (ONLY)
 # =========================================================
-import subprocess
-import time
-import requests
-import shutil
-
-def install_ollama():
-    if shutil.which("ollama"):
-        print("Ollama already installed")
-        return
-
-    print("Installing Ollama...")
-
-    subprocess.run(
-        "apt-get update && apt-get install -y zstd",
-        shell=True,
-        check=True
-    )
-
-    subprocess.run(
-        "curl -fsSL https://ollama.com/install.sh | sh",
-        shell=True,
-        check=True
-    )
-
 def start_ollama():
     try:
         requests.get("http://127.0.0.1:11434", timeout=1)
@@ -86,8 +42,7 @@ def start_ollama():
         stderr=subprocess.DEVNULL
     )
 
-    # wait until ready
-    for _ in range(20):
+    for _ in range(10):
         try:
             requests.get("http://127.0.0.1:11434", timeout=1)
             print("Ollama started")
@@ -97,22 +52,7 @@ def start_ollama():
 
     raise RuntimeError("Ollama failed to start")
 
-def ensure_model(model="qwen2.5:3b"):
-    try:
-        r = requests.get("http://127.0.0.1:11434/api/tags")
-        if model in r.text:
-            print(f"Model {model} already available")
-            return
-    except:
-        pass
-
-    print(f"Pulling model {model}...")
-    subprocess.run(["ollama", "pull", model], check=True)
-
-# RUN ON START
-install_ollama()
 start_ollama()
-ensure_model("qwen2.5:3b")
 
 # =========================================================
 # APP
