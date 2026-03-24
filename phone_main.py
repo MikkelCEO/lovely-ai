@@ -119,7 +119,8 @@ def get_qwen_reply(call_sid: str, user_text: str) -> str:
             json={
                 "model": OLLAMA_MODEL,
                 "messages": CALL_SESSIONS[call_sid],
-                "options": {"temperature": TEMPERATURE}
+                "options": {"temperature": TEMPERATURE},
+                "stream": False
             },
             timeout=TIMEOUT
         )
