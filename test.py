@@ -1,7 +1,7 @@
 import requests
 import time
 
-BASE_URL = "http://195.26.232.177:57011"  # your RunPod HTTP endpoint
+BASE_URL = "https://8goiy7cvw35hqp-8000.proxy.runpod.net"
 CALL_SID = "test_call_123"
 
 def send_speech(text):
