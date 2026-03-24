@@ -6,6 +6,10 @@ from faster_whisper import WhisperModel
 
 app = FastAPI()
 
+@app.get("/")
+def root():
+    return {"status": "ok"}
+
 model = WhisperModel("base", compute_type="int8")
 audio_buffer = bytearray()
 
@@ -52,5 +56,3 @@ async def audio_ws(websocket: WebSocket):
 
     except Exception as e:
         print("Client disconnected:", e)
-
-# test
