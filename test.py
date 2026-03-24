@@ -1,4 +1,15 @@
 # =========================================================
+# IMPORTS
+# =========================================================
+import os
+import traceback
+import websocket
+import json
+import base64
+import numpy as np
+import sounddevice as sd
+
+# =========================================================
 # AUTO INSTALL REQUIRED PACKAGES (INCLUDING WEBSOCKETS)
 # =========================================================
 import importlib
