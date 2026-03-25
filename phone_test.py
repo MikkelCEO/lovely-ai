@@ -1,37 +1,33 @@
+# Auto-install dependencies
 import subprocess
 import sys
-import time
-import msvcrt
-import os
 
-# Auto-install Twilio
 try:
-    from twilio.rest import Client
+    import flask
+    import twilio
 except ImportError:
-    print("Installing Twilio...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "twilio"])
-    from twilio.rest import Client
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "flask", "twilio"])
+
+from flask import Flask, jsonify
+from twilio.jwt.access_token import AccessToken
+from twilio.jwt.access_token.grants import VoiceGrant
+import os
 
 # Load config.txt
 config_path = os.path.join(os.path.dirname(__file__), "config.txt")
 with open(config_path, "r", encoding="utf-8") as f:
     exec(f.read())
 
-client = Client(ACCOUNT_SID, AUTH_TOKEN)
+app = Flask(__name__)
 
-print(f"Calling {YOUR_PHONE} now...")
-call = client.calls.create(
-    to=YOUR_PHONE,
-    from_=TWILIO_NUMBER
-)
+@app.route("/token")
+def token():
+    identity = "pc-user"
 
-print(f"Call started - SID: {call.sid}")
-print("Press 'q' to hang up.\n")
+    token = AccessToken(ACCOUNT_SID, API_KEY, API_SECRET, identity=identity)
+    voice_grant = VoiceGrant(outgoing_application_sid=TWIML_APP_SID)
+    token.add_grant(voice_grant)
 
-while True:
-    if msvcrt.kbhit():
-        if msvcrt.getch().decode('utf-8', errors='ignore').lower() == 'q':
-            client.calls(call.sid).update(status="completed")
-            print("Call ended.")
-            break
-    time.sleep(0.2)
+    return jsonify(token=token.to_jwt().decode())
+
+app.run(port=5000)
