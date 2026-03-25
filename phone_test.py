@@ -19,11 +19,9 @@ with open(config_path, "r", encoding="utf-8") as f:
 
 client = Client(ACCOUNT_SID, AUTH_TOKEN)
 
-target = input("Enter phone number to call: ").strip()
-
-print(f"Calling {target} now...")
+print(f"Calling {YOUR_PHONE} now...")
 call = client.calls.create(
-    to=target,
+    to=YOUR_PHONE,
     from_=TWILIO_NUMBER
 )
 
