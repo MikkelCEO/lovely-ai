@@ -2,8 +2,10 @@ import subprocess
 import sys
 import time
 import msvcrt
+import os
+from twilio.rest import Client
 
-# Auto-install Twilio
+# Auto-install Twilio if missing
 try:
     from twilio.rest import Client
 except ImportError:
@@ -11,15 +13,18 @@ except ImportError:
     subprocess.check_call([sys.executable, "-m", "pip", "install", "twilio"])
     from twilio.rest import Client
 
-# === CONFIG ===
-ACCOUNT_SID = "AC0c94c6664032a772dbec729dba49ecb9"   # your Account SID
-AUTH_TOKEN = "070adb4a65fe8a1d879bcc862439ba1e"                 # put your real Auth Token
-TWILIO_NUMBER = "+18392616244"                    # your Twilio number
-YOUR_PHONE = "+4915888654546"                        # the number you want to call
+# Load config from config.txt
+config_path = os.path.join(os.path.dirname(__file__), "config.txt")
+if not os.path.exists(config_path):
+    print("Error: config.txt not found!")
+    sys.exit(1)
+
+with open(config_path, "r", encoding="utf-8") as f:
+    exec(f.read())  # Loads ACCOUNT_SID, AUTH_TOKEN, TWILIO_NUMBER, YOUR_PHONE
 
 client = Client(ACCOUNT_SID, AUTH_TOKEN)
 
-print("Making call...")
+print("Making call to your phone...")
 call = client.calls.create(
     to=YOUR_PHONE,
     from_=TWILIO_NUMBER,
@@ -27,7 +32,8 @@ call = client.calls.create(
 )
 
 print(f"Call started - SID: {call.sid}")
-print("Call is active. Press 'q' key to hang up instantly.\n")
+print("Speak on your phone when it rings.")
+print("Press 'q' key to hang up instantly.\n")
 
 while True:
     if msvcrt.kbhit():
