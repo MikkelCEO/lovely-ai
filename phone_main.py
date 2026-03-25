@@ -1,11 +1,10 @@
 import os
 from typing import Dict, List
-
-from fastapi import FastAPI, Request, WebSocket
+from fastapi import FastAPI, Request
 from fastapi.responses import Response
-
 import subprocess
 import requests
+import time
 
 # =========================================================
 # LOAD FILES
@@ -32,7 +31,6 @@ def load_settings():
 
 SYSTEM_PROMPT = load_file("phone_prompt.txt", "You are a helpful assistant.")
 SETTINGS = load_settings()
-
 OLLAMA_MODEL = SETTINGS.get("model", "qwen2.5:3b")
 TEMPERATURE = float(SETTINGS.get("temperature", "0.2"))
 TIMEOUT = int(SETTINGS.get("timeout", "60"))
@@ -47,16 +45,8 @@ def start_ollama():
         return
     except:
         pass
-
     print("Starting Ollama...")
-
-    subprocess.Popen(
-        ["ollama", "serve"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
-
-    import time
+    subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for _ in range(30):
         try:
             requests.get("http://localhost:11434", timeout=2)
@@ -64,7 +54,6 @@ def start_ollama():
             return
         except:
             time.sleep(1)
-
     raise RuntimeError("Ollama failed to start")
 
 # =========================================================
@@ -87,32 +76,28 @@ def xml_escape(text: str) -> str:
 
 def build_twiml(say_text: str = "", action_url: str = "/twilio/respond", end_call: bool = False) -> str:
     say_text = xml_escape(say_text)
-
     if end_call:
         return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say voice="alice">{say_text}</Say>
     <Hangup/>
 </Response>"""
-
+    
+    # Fixed: Say reply then immediately Gather next input (no Redirect)
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say voice="alice">{say_text}</Say>
-    <Gather input="speech" action="{action_url}" method="POST" speechTimeout="auto" timeout="5">
-        <Say voice="alice">Please speak after the tone.</Say>
+    <Gather input="speech" action="{action_url}" method="POST" 
+            speechTimeout="auto" timeout="5" bargeIn="true">
     </Gather>
     <Redirect method="POST">{action_url}</Redirect>
 </Response>"""
 
-# =========================================================
-# LLM
-# =========================================================
 def get_qwen_reply(call_sid: str, user_text: str) -> str:
     if call_sid not in CALL_SESSIONS:
         CALL_SESSIONS[call_sid] = [{"role": "system", "content": SYSTEM_PROMPT}]
-
     CALL_SESSIONS[call_sid].append({"role": "user", "content": user_text})
-
+    
     try:
         response = requests.post(
             "http://localhost:11434/api/chat",
@@ -124,10 +109,7 @@ def get_qwen_reply(call_sid: str, user_text: str) -> str:
             },
             timeout=TIMEOUT
         )
-
         data = response.json()
-        print("OLLAMA RAW:", data)
-
         if "message" in data and "content" in data["message"]:
             reply = data["message"]["content"].strip()
         elif "response" in data:
@@ -136,11 +118,10 @@ def get_qwen_reply(call_sid: str, user_text: str) -> str:
             reply = f"Error: {data['error']}"
         else:
             reply = "Error: unexpected response from model"
-
     except Exception as e:
         print("OLLAMA ERROR:", e)
         reply = "Sorry, something went wrong."
-
+    
     CALL_SESSIONS[call_sid].append({"role": "assistant", "content": reply})
     return reply
 
@@ -160,31 +141,16 @@ async def twilio_respond(request: Request):
     form = await request.form()
     call_sid = str(form.get("CallSid", "default_call"))
     speech = str(form.get("SpeechResult", "")).strip()
-
+    
     if not speech:
-        return Response(build_twiml("Please say that again."), media_type="application/xml")
-
-    if speech.lower() in {"bye", "goodbye", "stop"}:
+        return Response(build_twiml("I didn't catch that. Please speak again."), media_type="application/xml")
+    
+    if speech.lower() in {"bye", "goodbye", "stop", "hang up"}:
         CALL_SESSIONS.pop(call_sid, None)
         return Response(build_twiml("Goodbye.", end_call=True), media_type="application/xml")
-
+    
     reply = get_qwen_reply(call_sid, speech)
     return Response(build_twiml(reply), media_type="application/xml")
-
-# =========================================================
-# WEBSOCKET
-# =========================================================
-@app.websocket("/audio")
-async def audio_stream(websocket: WebSocket):
-    await websocket.accept()
-    print("Audio stream connected")
-
-    try:
-        while True:
-            data = await websocket.receive_text()
-            print("Received:", data)
-    except Exception as e:
-        print("Audio stream closed:", e)
 
 # =========================================================
 # START
