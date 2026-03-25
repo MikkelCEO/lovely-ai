@@ -7,13 +7,15 @@ import sys
 try:
     import flask
     import twilio
+    import flask_cors
 except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "flask", "twilio"])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "flask", "twilio", "flask-cors"])
 
 # =========================================
 # IMPORTS
 # =========================================
 from flask import Flask, jsonify
+from flask_cors import CORS
 from twilio.jwt.access_token import AccessToken
 from twilio.jwt.access_token.grants import VoiceGrant
 import os
@@ -29,6 +31,7 @@ with open(config_path, "r", encoding="utf-8") as f:
 # INIT APP
 # =========================================
 app = Flask(__name__)
+CORS(app)
 
 # =========================================
 # TOKEN ENDPOINT
