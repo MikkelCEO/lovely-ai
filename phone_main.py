@@ -7,15 +7,10 @@ import requests
 import time
 import warnings
 
-# =========================================================
-# VERSION MARKER - update this when you change the script
-SCRIPT_VERSION = "2026-03-25 v3"
+SCRIPT_VERSION = "2026-03-25 v4"
 
 print(f"=== TWILIO PHONE SCRIPT STARTED - VERSION {SCRIPT_VERSION} ===")
 
-# =========================================================
-# LOAD FILES
-# =========================================================
 BASE_DIR = os.path.dirname(__file__)
 
 def load_file(filename: str, default: str = "") -> str:
@@ -42,9 +37,6 @@ OLLAMA_MODEL = SETTINGS.get("model", "qwen2.5:3b")
 TEMPERATURE = float(SETTINGS.get("temperature", "0.2"))
 TIMEOUT = int(SETTINGS.get("timeout", "60"))
 
-# =========================================================
-# START OLLAMA
-# =========================================================
 def start_ollama():
     try:
         requests.get("http://localhost:11434", timeout=2)
@@ -63,43 +55,22 @@ def start_ollama():
             time.sleep(1)
     raise RuntimeError("Ollama failed to start")
 
-# =========================================================
-# APP
-# =========================================================
 app = FastAPI()
-
-# Suppress WebSocket warning
 warnings.filterwarnings("ignore", message="Unsupported upgrade request")
-
 CALL_SESSIONS: Dict[str, List[dict]] = {}
 
-# =========================================================
-# HELPERS
-# =========================================================
 def xml_escape(text: str) -> str:
-    return (
-        text.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace('"', "&quot;")
-            .replace("'", "&apos;")
-    )
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&apos;")
 
 def build_twiml(say_text: str = "", action_url: str = "/twilio/respond", end_call: bool = False) -> str:
     say_text = xml_escape(say_text)
     if end_call:
         return f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Say voice="alice">{say_text}</Say>
-    <Hangup/>
-</Response>"""
-    
+<Response><Say voice="alice">{say_text}</Say><Hangup/></Response>"""
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say voice="alice">{say_text}</Say>
-    <Gather input="speech" action="{action_url}" method="POST" 
-            speechTimeout="auto" timeout="5" bargeIn="true">
-    </Gather>
+    <Gather input="speech" action="{action_url}" method="POST" speechTimeout="auto" timeout="5" bargeIn="true"></Gather>
     <Redirect method="POST">{action_url}</Redirect>
 </Response>"""
 
@@ -107,37 +78,22 @@ def get_qwen_reply(call_sid: str, user_text: str) -> str:
     if call_sid not in CALL_SESSIONS:
         CALL_SESSIONS[call_sid] = [{"role": "system", "content": SYSTEM_PROMPT}]
     CALL_SESSIONS[call_sid].append({"role": "user", "content": user_text})
-    
     try:
         response = requests.post(
             "http://localhost:11434/api/chat",
-            json={
-                "model": OLLAMA_MODEL,
-                "messages": CALL_SESSIONS[call_sid],
-                "options": {"temperature": TEMPERATURE},
-                "stream": False
-            },
+            json={"model": OLLAMA_MODEL, "messages": CALL_SESSIONS[call_sid], "options": {"temperature": TEMPERATURE}, "stream": False},
             timeout=TIMEOUT
         )
         data = response.json()
-        if "message" in data and "content" in data["message"]:
-            reply = data["message"]["content"].strip()
-        elif "response" in data:
-            reply = data["response"].strip()
-        elif "error" in data:
-            reply = f"Error: {data['error']}"
-        else:
-            reply = "Error: unexpected response from model"
+        reply = data.get("message", {}).get("content") or data.get("response") or "Sorry, something went wrong."
+        if isinstance(reply, dict): reply = str(reply)
+        reply = reply.strip()
     except Exception as e:
         print("OLLAMA ERROR:", e)
         reply = "Sorry, something went wrong."
-    
     CALL_SESSIONS[call_sid].append({"role": "assistant", "content": reply})
     return reply
 
-# =========================================================
-# ROUTES
-# =========================================================
 @app.get("/")
 def root():
     return {"status": "ok", "model": OLLAMA_MODEL, "version": SCRIPT_VERSION}
@@ -162,12 +118,9 @@ async def twilio_respond(request: Request):
     reply = get_qwen_reply(call_sid, speech)
     return Response(build_twiml(reply), media_type="application/xml")
 
-# Dummy route to stop /audio 404 (Twilio still hitting old path)
+# Keep /audio as dummy to prevent any issues
 @app.api_route("/audio", methods=["GET", "POST"])
-async def audio_dummy(request: Request):
-    return Response("OK - audio endpoint disabled", media_type="text/plain")
+async def audio_dummy():
+    return Response("audio endpoint disabled", media_type="text/plain")
 
-# =========================================================
-# START
-# =========================================================
 start_ollama()
