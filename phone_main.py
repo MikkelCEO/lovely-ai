@@ -5,6 +5,13 @@ from fastapi.responses import Response
 import subprocess
 import requests
 import time
+import warnings
+
+# =========================================================
+# VERSION MARKER - update this when you change the script
+SCRIPT_VERSION = "2026-03-25 v2"
+
+print(f"=== TWILIO PHONE SCRIPT STARTED - VERSION {SCRIPT_VERSION} ===")
 
 # =========================================================
 # LOAD FILES
@@ -60,6 +67,10 @@ def start_ollama():
 # APP
 # =========================================================
 app = FastAPI()
+
+# Suppress WebSocket warning
+warnings.filterwarnings("ignore", message="Unsupported upgrade request")
+
 CALL_SESSIONS: Dict[str, List[dict]] = {}
 
 # =========================================================
@@ -129,7 +140,7 @@ def get_qwen_reply(call_sid: str, user_text: str) -> str:
 # =========================================================
 @app.get("/")
 def root():
-    return {"status": "ok", "model": OLLAMA_MODEL}
+    return {"status": "ok", "model": OLLAMA_MODEL, "version": SCRIPT_VERSION}
 
 @app.api_route("/twilio", methods=["GET", "POST"])
 async def twilio_start():
