@@ -17,5 +17,8 @@
   "bugs": {
     "url": "https://github.com/MikkelCEO/phone/issues"
   },
-  "homepage": "https://github.com/MikkelCEO/phone#readme"
+  "homepage": "https://github.com/MikkelCEO/phone#readme",
+  "dependencies": {
+    "vite": "^8.0.2"
+  }
 }
