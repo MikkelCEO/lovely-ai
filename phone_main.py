@@ -83,7 +83,6 @@ def build_twiml(say_text: str = "", action_url: str = "/twilio/respond", end_cal
     <Hangup/>
 </Response>"""
     
-    # Fixed: Say reply then immediately Gather next input (no Redirect)
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say voice="alice">{say_text}</Say>
