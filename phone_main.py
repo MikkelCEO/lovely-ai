@@ -9,7 +9,7 @@ import warnings
 
 # =========================================================
 # VERSION MARKER - update this when you change the script
-SCRIPT_VERSION = "2026-03-25 v2"
+SCRIPT_VERSION = "2026-03-25 v3"
 
 print(f"=== TWILIO PHONE SCRIPT STARTED - VERSION {SCRIPT_VERSION} ===")
 
@@ -161,6 +161,11 @@ async def twilio_respond(request: Request):
     
     reply = get_qwen_reply(call_sid, speech)
     return Response(build_twiml(reply), media_type="application/xml")
+
+# Dummy route to stop /audio 404 (Twilio still hitting old path)
+@app.api_route("/audio", methods=["GET", "POST"])
+async def audio_dummy(request: Request):
+    return Response("OK - audio endpoint disabled", media_type="text/plain")
 
 # =========================================================
 # START
