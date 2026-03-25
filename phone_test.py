@@ -1,5 +1,4 @@
 import requests
-import time
 
 BASE_URL = "https://otcd6vzbq6sygq-8000.proxy.runpod.net"
 CALL_SID = "test_call_123"
@@ -7,10 +6,7 @@ CALL_SID = "test_call_123"
 def send_speech(text):
     response = requests.post(
         f"{BASE_URL}/twilio/respond",
-        data={
-            "CallSid": CALL_SID,
-            "SpeechResult": text
-        }
+        data={"CallSid": CALL_SID, "SpeechResult": text}
     )
     print("\n--- USER ---")
     print(text)
@@ -18,21 +14,19 @@ def send_speech(text):
     print(response.text)
 
 def main():
-    print("Simulated call started. Type messages like a phone call.")
-    print("Type 'exit' to end.\n")
+    print("Simulated call started.\n")
     
-    # Start the call with initial greeting
-    response = requests.post(f"{BASE_URL}/twilio")
-    print("--- INITIAL TWIML ---")
-    print(response.text)
+    # Start call
+    resp = requests.post(f"{BASE_URL}/twilio")
+    print("--- INITIAL GREETING ---")
+    print(resp.text)
     
     while True:
-        user_input = input("You: ")
+        user_input = input("You: ").strip()
         if user_input.lower() in ["exit", "quit"]:
-            print("Call ended.")
             break
-        send_speech(user_input)
-        time.sleep(0.5)
+        if user_input:
+            send_speech(user_input)
 
 if __name__ == "__main__":
     main()
