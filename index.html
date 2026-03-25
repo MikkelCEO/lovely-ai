@@ -1,20 +1,24 @@
 <!DOCTYPE html>
 <html>
 <head>
-<script src="https://media.twiliocdn.com/sdk/js/voice/latest/twilio.min.js"></script>
+  <script src="https://media.twiliocdn.com/sdk/js/voice/latest/twilio.min.js"></script>
 </head>
 <body>
+
 <button id="callBtn" disabled>Call Sister</button>
 
 <script>
 let device;
+
+// 👉 Set your number here (same as config)
+const CALL = "+4915888654546";
 
 async function init() {
   try {
     const res = await fetch('http://localhost:5000/token');
     const data = await res.json();
 
-    console.log("TOKEN:", data.token); // 👈 ADD THIS
+    console.log("TOKEN:", data.token);
 
     device = new Twilio.Device(data.token, {
       logLevel: 3
@@ -38,7 +42,16 @@ async function init() {
   }
 }
 
+// 👉 Call button
+document.getElementById("callBtn").onclick = function() {
+  console.log("📞 Calling...");
+  device.connect({
+    params: { To: CALL }
+  });
+};
+
 init();
 </script>
+
 </body>
 </html>
