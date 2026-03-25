@@ -1,56 +1,19 @@
-import requests
-import subprocess
-import sys
+import os
+from twilio.rest import Client
 
-# Auto-install gTTS + playsound for realistic voice (closest simple match to Twilio)
-try:
-    from gtts import gTTS
-    import playsound
-except ImportError:
-    print("Installing gTTS and playsound for realistic voice...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "gTTS", "playsound==1.2.2"])
-    from gtts import gTTS
-    import playsound
+# === CONFIG ===
+ACCOUNT_SID = "AC0c94c6664032a772dbec729dba49ecb9"   # your Account SID
+AUTH_TOKEN = "070adb4a65fe8a1d879bcc862439ba1e"                 # put your real Auth Token
+TWILIO_NUMBER = "+4915888654546"                    # your Twilio number
+YOUR_PHONE = "+18648033873"                        # the number you want to call
 
-BASE_URL = "https://6s6a2k05nk52l4-8000.proxy.runpod.net"
-CALL_SID = "test_call_123"
+client = Client(ACCOUNT_SID, AUTH_TOKEN)
 
-def speak(reply):
-    try:
-        tts = gTTS(text=reply, lang='en', slow=False)
-        tts.save("reply.mp3")
-        playsound.playsound("reply.mp3")
-    except:
-        pass  # fallback if audio fails
+call = client.calls.create(
+    to=YOUR_PHONE,
+    from_=TWILIO_NUMBER,
+    url="https://6s6a2k05nk52l4-8000.proxy.runpod.net/twilio"   # your webhook
+)
 
-def send_speech(text):
-    response = requests.post(
-        f"{BASE_URL}/twilio/respond",
-        data={"CallSid": CALL_SID, "SpeechResult": text}
-    )
-    if "<Say voice=\"alice\">" in response.text:
-        reply = response.text.split("<Say voice=\"alice\">")[1].split("</Say>")[0]
-        print(f"\nAssistant: {reply}")
-        speak(reply)
-    else:
-        print("\nAssistant: (no reply)")
-
-def main():
-    print("=== Exact Twilio Call Simulator with Voice ===\n")
-    
-    resp = requests.post(f"{BASE_URL}/twilio")
-    if "<Say voice=\"alice\">" in resp.text:
-        reply = resp.text.split("<Say voice=\"alice\">")[1].split("</Say>")[0]
-        print(f"Assistant: {reply}")
-        speak(reply)
-    
-    while True:
-        user_input = input("\nYou: ").strip()
-        if user_input.lower() in ["exit", "quit"]:
-            print("Call ended.")
-            break
-        if user_input:
-            send_speech(user_input)
-
-if __name__ == "__main__":
-    main()
+print("Calling your phone now...")
+print("Call SID:", call.sid)
