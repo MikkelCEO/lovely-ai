@@ -8,22 +8,20 @@ def send_speech(text):
         f"{BASE_URL}/twilio/respond",
         data={"CallSid": CALL_SID, "SpeechResult": text}
     )
-    print("\n--- USER ---")
-    print(text)
-    print("\n--- TWIML RESPONSE ---")
-    print(response.text)
+    print(f"\nYou: {text}")
+    print("Assistant:", response.text.split("<Say voice=\"alice\">")[1].split("</Say>")[0] if "<Say" in response.text else "No reply")
 
 def main():
-    print("Simulated call started.\n")
+    print("=== Twilio Voice Simulator ===\n")
     
-    # Start the call
+    # Start call
     resp = requests.post(f"{BASE_URL}/twilio")
-    print("--- INITIAL GREETING ---")
-    print(resp.text)
+    print("Assistant:", resp.text.split("<Say voice=\"alice\">")[1].split("</Say>")[0])
     
     while True:
-        user_input = input("You: ").strip()
+        user_input = input("\nYou: ").strip()
         if user_input.lower() in ["exit", "quit"]:
+            print("Call ended.")
             break
         if user_input:
             send_speech(user_input)
