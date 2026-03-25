@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite"
   },
   "repository": {
     "type": "git",
@@ -19,6 +19,9 @@
   },
   "homepage": "https://github.com/MikkelCEO/phone#readme",
   "dependencies": {
-    "vite": "^8.0.2"
+    "@twilio/voice-sdk": "^2.0.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
   }
 }
