@@ -1,6 +1,6 @@
 import requests
 
-BASE_URL = "https://otcd6vzbq6sygq-8000.proxy.runpod.net"
+BASE_URL = "https://6s6a2k05nk52l4-8000.proxy.runpod.net"
 CALL_SID = "test_call_123"
 
 def send_speech(text):
@@ -16,7 +16,7 @@ def send_speech(text):
 def main():
     print("Simulated call started.\n")
     
-    # Start call
+    # Start the call
     resp = requests.post(f"{BASE_URL}/twilio")
     print("--- INITIAL GREETING ---")
     print(resp.text)
