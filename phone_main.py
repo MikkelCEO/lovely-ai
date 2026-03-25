@@ -7,7 +7,7 @@ import requests
 import time
 import warnings
 
-SCRIPT_VERSION = "2026-03-25 v4"
+SCRIPT_VERSION = "2026-03-25 v6"
 
 print(f"=== TWILIO PHONE SCRIPT STARTED - VERSION {SCRIPT_VERSION} ===")
 
@@ -118,9 +118,9 @@ async def twilio_respond(request: Request):
     reply = get_qwen_reply(call_sid, speech)
     return Response(build_twiml(reply), media_type="application/xml")
 
-# Keep /audio as dummy to prevent any issues
+# Dummy /audio to prevent handshake error
 @app.api_route("/audio", methods=["GET", "POST"])
 async def audio_dummy():
-    return Response("audio endpoint disabled", media_type="text/plain")
+    return Response(status_code=426)
 
 start_ollama()
