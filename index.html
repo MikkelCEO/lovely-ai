@@ -14,12 +14,14 @@ async function init() {
     const res = await fetch('http://localhost:5000/token');
     const data = await res.json();
 
+    console.log("TOKEN:", data.token); // 👈 ADD THIS
+
     device = new Twilio.Device(data.token, {
-      logLevel: 1
+      logLevel: 3
     });
 
     device.on('registered', () => {
-      console.log('✅ READY');
+      console.log('✅ REGISTERED');
       document.getElementById("callBtn").disabled = false;
     });
 
@@ -27,17 +29,14 @@ async function init() {
       console.error('❌ ERROR:', error);
     });
 
+    device.on('connecting', () => console.log('📞 CONNECTING'));
+    device.on('connect', () => console.log('✅ CONNECTED'));
+    device.on('disconnect', () => console.log('🔌 DISCONNECTED'));
+
   } catch (e) {
     console.error('❌ FETCH ERROR:', e);
   }
 }
-
-document.getElementById("callBtn").onclick = function() {
-  console.log("📞 Calling...");
-  device.connect({
-    params: { To: "+YOUR_SISTER_NUMBER" }
-  });
-};
 
 init();
 </script>
