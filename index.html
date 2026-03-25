@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://media.twiliocdn.com/sdk/js/client/v1.13/twilio.min.js"></script>
+</head>
+<body>
+<button onclick="call()">Call Sister</button>
+
+<script>
+let device;
+
+fetch('http://localhost:5000/token')
+  .then(res => res.json())
+  .then(data => {
+    device = new Twilio.Device(data.token);
+
+    device.on('ready', () => {
+      console.log('Ready to call');
+    });
+
+    device.on('error', (error) => {
+      console.error(error);
+    });
+  });
+
+function call() {
+  device.connect({
+    To: "+YOUR_SISTER_NUMBER"
+  });
+}
+</script>
+</body>
+</html>
