@@ -1,4 +1,5 @@
 import requests
+import os
 
 BASE_URL = "https://6s6a2k05nk52l4-8000.proxy.runpod.net"
 CALL_SID = "test_call_123"
@@ -8,15 +9,36 @@ def send_speech(text):
         f"{BASE_URL}/twilio/respond",
         data={"CallSid": CALL_SID, "SpeechResult": text}
     )
-    print(f"\nYou: {text}")
-    print("Assistant:", response.text.split("<Say voice=\"alice\">")[1].split("</Say>")[0] if "<Say" in response.text else "No reply")
+    # Extract what the agent says
+    if "<Say voice=\"alice\">" in response.text:
+        reply = response.text.split("<Say voice=\"alice\">")[1].split("</Say>")[0]
+        print(f"\nAssistant: {reply}")
+        try:
+            os.system(f'say "{reply}"')      # macOS
+        except:
+            pass
+        try:
+            os.system(f'espeak "{reply}"')   # Linux
+        except:
+            pass
+    else:
+        print("\nAssistant: (no reply)")
 
 def main():
     print("=== Twilio Voice Simulator ===\n")
     
-    # Start call
     resp = requests.post(f"{BASE_URL}/twilio")
-    print("Assistant:", resp.text.split("<Say voice=\"alice\">")[1].split("</Say>")[0])
+    if "<Say voice=\"alice\">" in resp.text:
+        reply = resp.text.split("<Say voice=\"alice\">")[1].split("</Say>")[0]
+        print(f"Assistant: {reply}")
+        try:
+            os.system(f'say "{reply}"')
+        except:
+            pass
+        try:
+            os.system(f'espeak "{reply}"')
+        except:
+            pass
     
     while True:
         user_input = input("\nYou: ").strip()
