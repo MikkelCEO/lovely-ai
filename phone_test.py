@@ -23,7 +23,7 @@ import os
 # =========================================
 # LOAD CONFIG
 # =========================================
-config_path = os.path.join(os.path.dirname(__file__), "phone_tester", "config.txt")
+config_path = os.path.join(os.path.dirname(__file__), "config.txt")
 with open(config_path, "r", encoding="utf-8") as f:
     exec(f.read())
 
