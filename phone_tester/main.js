@@ -16,7 +16,7 @@ function log(text, type = "info") {
 async function init() {
   try {
     log("Fetching token...");
-    const res = await fetch("http://localhost:5000/token");
+    const res = await fetch("/token");
     const data = await res.json();
 
     device = new Device(data.token, { logLevel: 1 });
