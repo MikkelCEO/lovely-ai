@@ -37,12 +37,12 @@ with open(config_path, "r", encoding="utf-8") as f:
 # =========================================
 # INIT APP
 # =========================================
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(__file__)
+STATIC_DIR = os.path.join(BASE_DIR, "phone_tester", "dist")
+
+app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="")
 CORS(app)
 
-from werkzeug.middleware.proxy_fix import ProxyFix
-
-# Tell Flask it's behind a proxy (Cloudflare)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # =========================================
