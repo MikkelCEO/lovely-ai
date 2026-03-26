@@ -1,15 +1,22 @@
 # =========================================
-# AUTO INSTALL DEPENDENCIES
+# AUTO INSTALL PYTHON DEPENDENCIES
 # =========================================
 import subprocess
 import sys
+import os
+import threading
+import webbrowser
+import time
+
+def pip_install(packages):
+    subprocess.check_call([sys.executable, "-m", "pip", "install"] + packages)
 
 try:
     import flask
     import twilio
     import flask_cors
 except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "flask", "twilio", "flask-cors"])
+    pip_install(["flask", "twilio", "flask-cors"])
 
 # =========================================
 # IMPORTS
@@ -18,7 +25,6 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from twilio.jwt.access_token import AccessToken
 from twilio.jwt.access_token.grants import VoiceGrant
-import os
 
 # =========================================
 # LOAD CONFIG
@@ -47,7 +53,47 @@ def token():
     return jsonify(token=token.to_jwt())
 
 # =========================================
-# RUN SERVER
+# ENSURE NODE + INSTALL FRONTEND
+# =========================================
+def setup_frontend():
+    frontend_path = os.path.join(os.path.dirname(__file__), "phone_tester")
+
+    # Check npm
+    try:
+        subprocess.check_output(["npm", "--version"], shell=True)
+    except:
+        print("❌ Node.js / npm not installed")
+        return
+
+    print("Installing frontend dependencies...")
+    subprocess.call("npm install", cwd=frontend_path, shell=True)
+
+# =========================================
+# START FRONTEND (VITE)
+# =========================================
+def start_frontend():
+    frontend_path = os.path.join(os.path.dirname(__file__), "phone_tester")
+    subprocess.Popen("npm run dev", cwd=frontend_path, shell=True)
+
+# =========================================
+# OPEN BROWSER
+# =========================================
+def open_browser():
+    time.sleep(4)
+    webbrowser.open("http://localhost:5173")
+
+# =========================================
+# MAIN
 # =========================================
 if __name__ == "__main__":
+    print("Setting up frontend...")
+    setup_frontend()
+
+    print("Starting frontend...")
+    threading.Thread(target=start_frontend).start()
+
+    print("Opening browser...")
+    threading.Thread(target=open_browser).start()
+
+    print("Starting backend...")
     app.run(port=5000)
