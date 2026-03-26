@@ -100,14 +100,5 @@ def open_browser():
 # MAIN
 # =========================================
 if __name__ == "__main__":
-    print("Setting up frontend...")
-    setup_frontend()
-
-    print("Starting frontend...")
-    threading.Thread(target=start_frontend).start()
-
-    print("Opening browser...")
-    threading.Thread(target=open_browser).start()
-
-    print("Starting backend...")
+    print("Starting Flask (API only)...")
     app.run(host="0.0.0.0", port=5050)
