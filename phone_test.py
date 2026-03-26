@@ -46,8 +46,16 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # =========================================
-# ROUTES (CLEAN + DEBUG)
+# ROUTES (TEST FIRST)
 # =========================================
+
+@app.route("/")
+def home():
+    return "✅ Flask is running on NAS"
+
+@app.route("/test")
+def test():
+    return {"status": "ok"}
 
 @app.route("/token")
 def token():
@@ -58,13 +66,6 @@ def token():
     token.add_grant(voice_grant)
 
     return jsonify(token=token.to_jwt())
-
-
-# Debug catch-all (must be LAST)
-@app.route("/", defaults={"path": ""})
-@app.route("/<path:path>")
-def catch_all(path):
-    return f"PATH HIT: /{path}"
 
 # =========================================
 # ENSURE NODE + INSTALL FRONTEND
