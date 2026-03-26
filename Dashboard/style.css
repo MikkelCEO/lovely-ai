@@ -1,113 +1,252 @@
-const callsEl = document.getElementById("calls");
-const activeCallsEl = document.getElementById("activeCalls");
-const messageCountEl = document.getElementById("messageCount");
-const lastUpdateEl = document.getElementById("lastUpdate");
-const statusTextEl = document.getElementById("statusText");
-const statusDotEl = document.getElementById("statusDot");
-const refreshBtn = document.getElementById("refreshBtn");
-const callTemplate = document.getElementById("callTemplate");
-const messageTemplate = document.getElementById("messageTemplate");
-
-let pollHandle = null;
-
-function setStatus(text, online) {
-    statusTextEl.textContent = text;
-    statusDotEl.classList.toggle("online", !!online);
-    statusDotEl.classList.toggle("offline", !online);
+* {
+    box-sizing: border-box;
 }
 
-function formatTime(date) {
-    return date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
-    });
+html, body {
+    margin: 0;
+    padding: 0;
+    background: #0f1115;
+    color: #eef2ff;
+    font-family: Arial, sans-serif;
 }
 
-function escapeHtml(value) {
-    return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+body {
+    min-height: 100vh;
 }
 
-function getRoleLabel(role) {
-    if (role === "user") return "Caller";
-    if (role === "assistant") return "Assistant";
-    if (role === "system") return "System";
-    return role || "Unknown";
+.page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 16px;
 }
 
-function renderEmpty() {
-    callsEl.innerHTML = `
-        <div class="empty-state">
-            <div class="empty-title">No active calls</div>
-            <div class="empty-text">When a call starts, messages will appear here live.</div>
-        </div>
-    `;
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding: 16px;
+    background: #171b22;
+    border: 1px solid #2a3140;
+    border-radius: 12px;
 }
 
-function renderCalls(data) {
-    const entries = Object.entries(data || {});
-    const totalMessages = entries.reduce((sum, [, messages]) => sum + messages.length, 0);
+.topbar h1 {
+    margin: 0;
+    font-size: 28px;
+}
 
-    activeCallsEl.textContent = String(entries.length);
-    messageCountEl.textContent = String(totalMessages);
-    lastUpdateEl.textContent = formatTime(new Date());
+.subtitle {
+    margin-top: 4px;
+    color: #9aa6c2;
+    font-size: 14px;
+}
 
-    if (entries.length === 0) {
-        renderEmpty();
-        return;
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #cfd7ea;
+    font-size: 14px;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #ff6863;
+    box-shadow: 0 0 8px rgba(255, 104, 99, 0.5);
+}
+
+.status-dot.online {
+    background: #00c853;
+    box-shadow: 0 0 8px rgba(0, 200, 83, 0.5);
+}
+
+.status-dot.offline {
+    background: #ff6863;
+}
+
+button {
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 14px;
+    background: #2636f0;
+    color: #ffffff;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+button:hover {
+    opacity: 0.92;
+}
+
+.summary-bar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.summary-card {
+    background: #171b22;
+    border: 1px solid #2a3140;
+    border-radius: 12px;
+    padding: 14px;
+}
+
+.summary-label {
+    color: #9aa6c2;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+.summary-value {
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.summary-value.small {
+    font-size: 18px;
+}
+
+.calls {
+    display: grid;
+    gap: 16px;
+}
+
+.call-card {
+    background: #171b22;
+    border: 1px solid #2a3140;
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.call-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #2a3140;
+}
+
+.call-title {
+    font-size: 18px;
+    font-weight: 700;
+    word-break: break-all;
+}
+
+.call-subtitle {
+    margin-top: 4px;
+    color: #9aa6c2;
+    font-size: 13px;
+}
+
+.messages {
+    display: grid;
+    gap: 10px;
+}
+
+.message {
+    padding: 12px;
+    border-radius: 10px;
+    background: #11151c;
+    border: 1px solid #232a36;
+}
+
+.message-meta {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.message-content {
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.role-user {
+    border-left: 4px solid #6d77ff;
+}
+
+.role-user .message-meta {
+    color: #6d77ff;
+}
+
+.role-assistant {
+    border-left: 4px solid #00c853;
+}
+
+.role-assistant .message-meta {
+    color: #00c853;
+}
+
+.role-system {
+    border-left: 4px solid #ff6863;
+}
+
+.role-system .message-meta {
+    color: #ff6863;
+}
+
+.empty-state {
+    padding: 28px;
+    text-align: center;
+    background: #171b22;
+    border: 1px solid #2a3140;
+    border-radius: 12px;
+}
+
+.empty-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.empty-text {
+    color: #9aa6c2;
+    font-size: 14px;
+}
+
+.error-state .empty-title {
+    color: #ff6863;
+}
+
+@media (max-width: 700px) {
+    .page {
+        padding: 10px;
     }
 
-    callsEl.innerHTML = "";
+    .topbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
 
-    for (const [callId, messages] of entries) {
-        const callNode = callTemplate.content.firstElementChild.cloneNode(true);
-        callNode.querySelector(".call-title").textContent = callId;
-        callNode.querySelector(".call-subtitle").textContent = `${messages.length} message${messages.length === 1 ? "" : "s"}`;
+    .topbar-right {
+        justify-content: space-between;
+    }
 
-        const messagesEl = callNode.querySelector(".messages");
+    .summary-bar {
+        grid-template-columns: 1fr;
+    }
 
-        for (const msg of messages) {
-            const msgNode = messageTemplate.content.firstElementChild.cloneNode(true);
-            const role = msg.role || "unknown";
-            msgNode.classList.add(`role-${role}`);
+    .topbar h1 {
+        font-size: 24px;
+    }
 
-            msgNode.querySelector(".message-meta").textContent = getRoleLabel(role);
-            msgNode.querySelector(".message-content").innerHTML = escapeHtml(msg.content || "").replaceAll("\n", "<br>");
-
-            messagesEl.appendChild(msgNode);
-        }
-
-        callsEl.appendChild(callNode);
+    .summary-value {
+        font-size: 24px;
     }
 }
-
-async function loadDashboard() {
-    try {
-        const res = await fetch("/dashboard/data", { cache: "no-store" });
-        if (!res.ok) {
-            throw new Error(`HTTP ${res.status}`);
-        }
-
-        const data = await res.json();
-        renderCalls(data);
-        setStatus("Live", true);
-    } catch (error) {
-        setStatus("Offline", false);
-        callsEl.innerHTML = `
-            <div class="empty-state error-state">
-                <div class="empty-title">Dashboard unavailable</div>
-                <div class="empty-text">${escapeHtml(error.message)}</div>
-            </div>
-        `;
-    }
-}
-
-refreshBtn.addEventListener("click", loadDashboard);
-
-loadDashboard();
-pollHandle = setInterval(loadDashboard, 1000);
