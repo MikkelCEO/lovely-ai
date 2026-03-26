@@ -45,19 +45,6 @@ app.wsgi_app = ProxyFix(app.wsgi_app)
 app.config["SERVER_NAME"] = None
 
 # =========================================
-# TOKEN ENDPOINT
-# =========================================
-@app.route("/token")
-def token():
-    identity = "pc-user"
-
-    token = AccessToken(ACCOUNT_SID, API_KEY, API_SECRET, identity=identity)
-    voice_grant = VoiceGrant(outgoing_application_sid=TWIML_APP_SID)
-    token.add_grant(voice_grant)
-
-    return jsonify(token=token.to_jwt())
-
-# =========================================
 # ROUTES (CLEAN + DEBUG)
 # =========================================
 
