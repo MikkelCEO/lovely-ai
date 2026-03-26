@@ -39,6 +39,12 @@ with open(config_path, "r", encoding="utf-8") as f:
 app = Flask(__name__)
 CORS(app)
 
+# Fix for Cloudflare / reverse proxy
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app)
+
+app.config["SERVER_NAME"] = None
+
 # =========================================
 # TOKEN ENDPOINT
 # =========================================
