@@ -58,15 +58,22 @@ def token():
     return jsonify(token=token.to_jwt())
 
 # =========================================
-# DEBUG ROUTES (TEST CLOUDFLARE)
+# ROUTES (DEBUG + TOKEN)
 # =========================================
-@app.route("/")
-def root():
-    return "ROOT OK"
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def catch_all(path):
+    return f"PATH HIT: /{path}"
 
-@app.route("/test")
-def test():
-    return "TEST OK"
+@app.route("/token")
+def token():
+    identity = "pc-user"
+
+    token = AccessToken(ACCOUNT_SID, API_KEY, API_SECRET, identity=identity)
+    voice_grant = VoiceGrant(outgoing_application_sid=TWIML_APP_SID)
+    token.add_grant(voice_grant)
+
+    return jsonify(token=token.to_jwt())
 
 # =========================================
 # ENSURE NODE + INSTALL FRONTEND
