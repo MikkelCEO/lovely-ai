@@ -128,41 +128,16 @@ start_ollama()
 # =========================================
 # DASHBOARD (LIVE CALL LOG UI)
 # =========================================
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
-@app.get("/dashboard", response_class=HTMLResponse)
+DASHBOARD_DIR = os.path.join(BASE_DIR, "dashboard")
+
+app.mount("/dashboard/static", StaticFiles(directory=DASHBOARD_DIR), name="dashboard_static")
+
+@app.get("/dashboard")
 def dashboard():
-    return """
-    <html>
-    <head>
-        <title>Dashboard</title>
-    </head>
-    <body style="background:#111;color:#eee;font-family:Arial;padding:20px;">
-        <h1>Live Calls</h1>
-        <div id="log"></div>
-
-        <script>
-        async function load() {
-            const res = await fetch('/dashboard/data');
-            const data = await res.json();
-
-            let html = '';
-            for (const [call, msgs] of Object.entries(data)) {
-                html += `<h2>${call}</h2>`;
-                msgs.forEach(m => {
-                    html += `<div><b>${m.role}:</b> ${m.content}</div>`;
-                });
-            }
-
-            document.getElementById('log').innerHTML = html;
-        }
-
-        setInterval(load, 1000);
-        load();
-        </script>
-    </body>
-    </html>
-    """
+    return FileResponse(os.path.join(DASHBOARD_DIR, "index.html"))
 
 @app.get("/dashboard/data")
 def dashboard_data():
