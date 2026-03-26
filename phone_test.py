@@ -25,6 +25,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from twilio.jwt.access_token import AccessToken
 from twilio.jwt.access_token.grants import VoiceGrant
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # =========================================
 # LOAD CONFIG
@@ -40,9 +41,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Fix for Cloudflare / reverse proxy
-from werkzeug.middleware.proxy_fix import ProxyFix
 app.wsgi_app = ProxyFix(app.wsgi_app)
-
 app.config["SERVER_NAME"] = None
 
 # =========================================
@@ -59,12 +58,22 @@ def token():
     return jsonify(token=token.to_jwt())
 
 # =========================================
+# DEBUG ROUTES (TEST CLOUDFLARE)
+# =========================================
+@app.route("/")
+def root():
+    return "ROOT OK"
+
+@app.route("/test")
+def test():
+    return "TEST OK"
+
+# =========================================
 # ENSURE NODE + INSTALL FRONTEND
 # =========================================
 def setup_frontend():
     frontend_path = os.path.join(os.path.dirname(__file__), "phone_tester")
 
-    # Check npm
     try:
         subprocess.check_output(["npm", "--version"], shell=True)
     except:
@@ -79,7 +88,7 @@ def setup_frontend():
 # =========================================
 def start_frontend():
     frontend_path = os.path.join(os.path.dirname(__file__), "phone_tester")
-    subprocess.Popen("npm run dev", cwd=frontend_path, shell=True)
+    subprocess.Popen("npm run dev -- --host 0.0.0.0", cwd=frontend_path, shell=True)
 
 # =========================================
 # OPEN BROWSER
@@ -103,14 +112,3 @@ if __name__ == "__main__":
 
     print("Starting backend...")
     app.run(host="0.0.0.0", port=5000)
-
-# =========================================
-# DEBUG ROUTES (TEST CLOUDFLARE)
-# =========================================
-@app.route("/")
-def root():
-    return "ROOT OK"
-
-@app.route("/test")
-def test():
-    return "TEST OK"
