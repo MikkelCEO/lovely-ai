@@ -67,7 +67,7 @@ echo "Runtime config (local):"
 cat $CONFIG_FILE_LOCAL
 
 # Push to NAS
-scp $CONFIG_FILE_LOCAL $CONFIG_FILE_NAS
+scp -v $CONFIG_FILE_LOCAL $CONFIG_FILE_NAS
 
 echo "Config pushed to NAS"
 
