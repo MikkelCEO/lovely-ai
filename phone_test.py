@@ -46,16 +46,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # =========================================
-# ROUTES (TEST FIRST)
+# ROUTES
 # =========================================
-
-@app.route("/")
-def home():
-    return "✅ Flask is running on NAS"
-
-@app.route("/test")
-def test():
-    return {"status": "ok"}
 
 @app.route("/token")
 def token():
@@ -66,6 +58,19 @@ def token():
     token.add_grant(voice_grant)
 
     return jsonify(token=token.to_jwt())
+
+# Serve frontend (SPA)
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve_frontend(path):
+    dist_path = os.path.join(os.path.dirname(__file__), "phone_tester", "dist")
+
+    file_path = os.path.join(dist_path, path)
+
+    if path != "" and os.path.exists(file_path):
+        return app.send_static_file(path)
+
+    return app.send_static_file("index.html")
 
 # =========================================
 # ENSURE NODE + INSTALL FRONTEND
