@@ -3,100 +3,90 @@
 <head>
   <meta charset="UTF-8" />
   <title>PC Phone</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    body {
-      font-family: Arial;
-      background: #0f172a;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
-    }
-
-    h2 {
-      margin-bottom: 10px;
-    }
-
-    .info {
-      background: #020617;
-      padding: 10px 15px;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      width: 100%;
-      max-width: 600px;
-      font-size: 14px;
-    }
-
-    .buttons {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    button {
-      padding: 12px 20px;
-      font-size: 16px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-    }
-
-    #callBtn {
-      background: #22c55e;
-      color: white;
-    }
-
-    #endBtn {
-      background: #ef4444;
-      color: white;
-    }
-
-    button:disabled {
-      background: #555;
-      cursor: not-allowed;
-    }
-
-    #log {
-      width: 100%;
-      max-width: 600px;
-      height: 320px;
-      background: #020617;
-      border-radius: 10px;
-      padding: 15px;
-      overflow-y: auto;
-      font-size: 13px;
-    }
-
-    .entry { margin-bottom: 6px; }
-    .ok { color: #22c55e; }
-    .err { color: #ef4444; }
-    .infoLog { color: #38bdf8; }
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .log-entry { transition: all 0.2s ease; }
   </style>
 </head>
+<body class="bg-zinc-950 text-white min-h-screen flex items-center justify-center p-6">
+  <div class="w-full max-w-md bg-zinc-900 rounded-3xl shadow-2xl overflow-hidden border border-zinc-800">
+    
+    <!-- Header -->
+    <div class="bg-zinc-950 px-6 py-5 flex items-center justify-between border-b border-zinc-800">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 bg-emerald-500 rounded-2xl flex items-center justify-center text-xl">📞</div>
+        <div>
+          <h1 class="text-xl font-semibold tracking-tight">PC Phone</h1>
+          <p class="text-zinc-500 text-xs">Twilio Voice</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 text-emerald-400">
+        <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+        <span class="text-xs font-medium">Online</span>
+      </div>
+    </div>
 
-<body>
+    <!-- Call Info -->
+    <div class="p-6 border-b border-zinc-800 bg-zinc-950">
+      <div class="flex justify-between text-sm">
+        <div>
+          <p class="text-zinc-400">Calling</p>
+          <p id="to" class="font-mono text-lg font-medium text-white">+49 158 886 54546</p>
+        </div>
+        <div class="text-right">
+          <p class="text-zinc-400">From</p>
+          <p id="from" class="font-mono text-lg font-medium text-white">+1 839 261 6244</p>
+        </div>
+      </div>
+    </div>
 
-<h2>📞 PC Phone</h2>
+    <!-- Controls -->
+    <div class="p-8 flex gap-4 justify-center bg-zinc-900">
+      <button id="callBtn" disabled
+        class="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-700 transition-all text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-3 text-lg shadow-lg shadow-emerald-500/30">
+        <i class="fas fa-phone"></i>
+        <span>Call</span>
+      </button>
+      
+      <button id="endBtn" disabled
+        class="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-zinc-700 transition-all text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-3 text-lg shadow-lg shadow-red-500/30">
+        <i class="fas fa-phone-slash"></i>
+        <span>End Call</span>
+      </button>
+    </div>
 
-<div class="info">
-  <div><strong>Calling:</strong> <span id="to"></span></div>
-  <div><strong>From:</strong> <span id="from"></span></div>
-</div>
+    <!-- Extra Functions -->
+    <div class="grid grid-cols-3 gap-px bg-zinc-800 p-2">
+      <button onclick="muteToggle()" class="bg-zinc-900 hover:bg-zinc-800 py-4 rounded-2xl flex flex-col items-center gap-1 text-zinc-400 hover:text-white transition-colors">
+        <i class="fas fa-microphone-slash text-xl"></i>
+        <span class="text-xs">Mute</span>
+      </button>
+      <button onclick="toggleSpeaker()" class="bg-zinc-900 hover:bg-zinc-800 py-4 rounded-2xl flex flex-col items-center gap-1 text-zinc-400 hover:text-white transition-colors">
+        <i class="fas fa-volume-up text-xl"></i>
+        <span class="text-xs">Speaker</span>
+      </button>
+      <button onclick="clearLog()" class="bg-zinc-900 hover:bg-zinc-800 py-4 rounded-2xl flex flex-col items-center gap-1 text-zinc-400 hover:text-white transition-colors">
+        <i class="fas fa-trash text-xl"></i>
+        <span class="text-xs">Clear</span>
+      </button>
+    </div>
 
-<div class="buttons">
-  <button id="callBtn" disabled>Call</button>
-  <button id="endBtn" disabled>End Call</button>
-</div>
-
-<div id="log"></div>
+    <!-- Log -->
+    <div class="px-6 pb-6">
+      <div class="flex items-center justify-between mb-3 text-xs uppercase tracking-widest text-zinc-500">
+        <span>Activity Log</span>
+        <span id="status" class="text-emerald-400">Ready</span>
+      </div>
+      <div id="log" class="bg-zinc-950 border border-zinc-800 rounded-2xl h-72 p-5 overflow-y-auto text-sm font-mono text-zinc-300 space-y-1"></div>
+    </div>
+  </div>
 
 <script type="module">
 import { Device } from "@twilio/voice-sdk";
 
-let device;
-let currentCall = null;
-
+let device, currentCall = null;
 const CALL = "+4915888654546";
 const FROM = "+18392616244";
 
@@ -105,9 +95,9 @@ document.getElementById("from").textContent = FROM;
 
 const logBox = document.getElementById("log");
 
-function log(text, type = "infoLog") {
+function log(text, type = "text-zinc-400") {
   const el = document.createElement("div");
-  el.className = "entry " + type;
+  el.className = `log-entry ${type}`;
   el.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
   logBox.appendChild(el);
   logBox.scrollTop = logBox.scrollHeight;
@@ -115,61 +105,68 @@ function log(text, type = "infoLog") {
 
 async function init() {
   try {
-    log("Fetching token...");
+    log("Connecting to server...");
     const res = await fetch("http://localhost:5000/token");
     const data = await res.json();
-
+    
     device = new Device(data.token, { logLevel: 1 });
-
+    
     device.on("registered", () => {
-      log("Device registered", "ok");
+      log("Device ready", "text-emerald-400");
       document.getElementById("callBtn").disabled = false;
+      document.getElementById("status").textContent = "Ready";
     });
-
-    device.on("error", (e) => log("Device error: " + e.message, "err"));
-    device.on("incoming", () => log("Incoming call"));
-    device.on("tokenWillExpire", () => log("Token expiring soon"));
-
+    
+    device.on("error", (e) => log("Error: " + e.message, "text-red-400"));
+    
     await device.register();
-
   } catch (e) {
-    log("Init failed: " + e.message, "err");
+    log("Init failed: " + e.message, "text-red-400");
   }
 }
 
 document.getElementById("callBtn").onclick = async () => {
   try {
-    log("Starting call...");
-    currentCall = await device.connect({
-      params: { To: CALL }
-    });
-
+    log("Dialing...");
+    currentCall = await device.connect({ params: { To: CALL } });
+    
     document.getElementById("endBtn").disabled = false;
-
-    currentCall.on("accept", () => log("Call accepted", "ok"));
+    
+    currentCall.on("accept", () => log("Call connected", "text-emerald-400"));
     currentCall.on("disconnect", () => {
       log("Call ended");
       document.getElementById("endBtn").disabled = true;
       currentCall = null;
     });
-    currentCall.on("cancel", () => log("Call canceled", "err"));
-    currentCall.on("reject", () => log("Call rejected", "err"));
-    currentCall.on("error", (e) => log("Call error: " + e.message, "err"));
-
+    currentCall.on("error", (e) => log("Call error: " + e.message, "text-red-400"));
   } catch (e) {
-    log("Call failed: " + e.message, "err");
+    log("Failed to call: " + e.message, "text-red-400");
   }
 };
 
 document.getElementById("endBtn").onclick = () => {
-  if (currentCall) {
-    log("Ending call...");
-    currentCall.disconnect();
-  }
+  if (currentCall) currentCall.disconnect();
 };
+
+// Extra functions (UI only for now)
+let muted = false, speaker = false;
+
+function muteToggle() {
+  muted = !muted;
+  log(muted ? "Microphone muted" : "Microphone unmuted", muted ? "text-amber-400" : "text-emerald-400");
+}
+
+function toggleSpeaker() {
+  speaker = !speaker;
+  log(speaker ? "Speaker mode on" : "Speaker mode off", "text-sky-400");
+}
+
+function clearLog() {
+  logBox.innerHTML = "";
+  log("Log cleared", "text-zinc-500");
+}
 
 init();
 </script>
-
 </body>
 </html>
