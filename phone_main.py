@@ -7,7 +7,7 @@ import requests
 import time
 import warnings
 
-SCRIPT_VERSION = "2026-03-25 v6"
+SCRIPT_VERSION = "2026-03-25 v7"
 
 print(f"=== TWILIO PHONE SCRIPT STARTED - VERSION {SCRIPT_VERSION} ===")
 
@@ -124,3 +124,46 @@ async def audio_dummy():
     return Response(status_code=426)
 
 start_ollama()
+
+# =========================================
+# DASHBOARD (LIVE CALL LOG UI)
+# =========================================
+from fastapi.responses import HTMLResponse
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard():
+    return """
+    <html>
+    <head>
+        <title>Dashboard</title>
+    </head>
+    <body style="background:#111;color:#eee;font-family:Arial;padding:20px;">
+        <h1>Live Calls</h1>
+        <div id="log"></div>
+
+        <script>
+        async function load() {
+            const res = await fetch('/dashboard/data');
+            const data = await res.json();
+
+            let html = '';
+            for (const [call, msgs] of Object.entries(data)) {
+                html += `<h2>${call}</h2>`;
+                msgs.forEach(m => {
+                    html += `<div><b>${m.role}:</b> ${m.content}</div>`;
+                });
+            }
+
+            document.getElementById('log').innerHTML = html;
+        }
+
+        setInterval(load, 1000);
+        load();
+        </script>
+    </body>
+    </html>
+    """
+
+@app.get("/dashboard/data")
+def dashboard_data():
+    return CALL_SESSIONS
