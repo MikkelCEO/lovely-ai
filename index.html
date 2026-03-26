@@ -14,15 +14,42 @@
       padding: 20px;
     }
 
+    h2 {
+      margin-bottom: 10px;
+    }
+
+    .info {
+      background: #020617;
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      width: 100%;
+      max-width: 600px;
+      font-size: 14px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
     button {
-      padding: 15px 30px;
-      font-size: 18px;
+      padding: 12px 20px;
+      font-size: 16px;
       border: none;
       border-radius: 10px;
+      cursor: pointer;
+    }
+
+    #callBtn {
       background: #22c55e;
       color: white;
-      cursor: pointer;
-      margin-bottom: 20px;
+    }
+
+    #endBtn {
+      background: #ef4444;
+      color: white;
     }
 
     button:disabled {
@@ -33,21 +60,18 @@
     #log {
       width: 100%;
       max-width: 600px;
-      height: 300px;
+      height: 320px;
       background: #020617;
       border-radius: 10px;
       padding: 15px;
       overflow-y: auto;
-      font-size: 14px;
+      font-size: 13px;
     }
 
-    .entry {
-      margin-bottom: 6px;
-    }
-
+    .entry { margin-bottom: 6px; }
     .ok { color: #22c55e; }
     .err { color: #ef4444; }
-    .info { color: #38bdf8; }
+    .infoLog { color: #38bdf8; }
   </style>
 </head>
 
@@ -55,11 +79,97 @@
 
 <h2>📞 PC Phone</h2>
 
-<button id="callBtn" disabled>Call</button>
+<div class="info">
+  <div><strong>Calling:</strong> <span id="to"></span></div>
+  <div><strong>From:</strong> <span id="from"></span></div>
+</div>
+
+<div class="buttons">
+  <button id="callBtn" disabled>Call</button>
+  <button id="endBtn" disabled>End Call</button>
+</div>
 
 <div id="log"></div>
 
-<script type="module" src="./main.js"></script>
+<script type="module">
+import { Device } from "@twilio/voice-sdk";
+
+let device;
+let currentCall = null;
+
+const CALL = "+4915888654546";
+const FROM = "+18392616244";
+
+document.getElementById("to").textContent = CALL;
+document.getElementById("from").textContent = FROM;
+
+const logBox = document.getElementById("log");
+
+function log(text, type = "infoLog") {
+  const el = document.createElement("div");
+  el.className = "entry " + type;
+  el.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+  logBox.appendChild(el);
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+async function init() {
+  try {
+    log("Fetching token...");
+    const res = await fetch("http://localhost:5000/token");
+    const data = await res.json();
+
+    device = new Device(data.token, { logLevel: 1 });
+
+    device.on("registered", () => {
+      log("Device registered", "ok");
+      document.getElementById("callBtn").disabled = false;
+    });
+
+    device.on("error", (e) => log("Device error: " + e.message, "err"));
+    device.on("incoming", () => log("Incoming call"));
+    device.on("tokenWillExpire", () => log("Token expiring soon"));
+
+    await device.register();
+
+  } catch (e) {
+    log("Init failed: " + e.message, "err");
+  }
+}
+
+document.getElementById("callBtn").onclick = async () => {
+  try {
+    log("Starting call...");
+    currentCall = await device.connect({
+      params: { To: CALL }
+    });
+
+    document.getElementById("endBtn").disabled = false;
+
+    currentCall.on("accept", () => log("Call accepted", "ok"));
+    currentCall.on("disconnect", () => {
+      log("Call ended");
+      document.getElementById("endBtn").disabled = true;
+      currentCall = null;
+    });
+    currentCall.on("cancel", () => log("Call canceled", "err"));
+    currentCall.on("reject", () => log("Call rejected", "err"));
+    currentCall.on("error", (e) => log("Call error: " + e.message, "err"));
+
+  } catch (e) {
+    log("Call failed: " + e.message, "err");
+  }
+};
+
+document.getElementById("endBtn").onclick = () => {
+  if (currentCall) {
+    log("Ending call...");
+    currentCall.disconnect();
+  }
+};
+
+init();
+</script>
 
 </body>
 </html>
