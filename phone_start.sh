@@ -2,17 +2,13 @@
 
 cd /workspace/Phone || exit 1
 
+echo "=== STARTING PHONE AI STACK ==="
+
 apt-get update && apt-get install -y curl zstd
 
 # Install Ollama if missing
 if ! command -v ollama &> /dev/null; then
   curl -fsSL https://ollama.com/install.sh | sh
-fi
-
-# Install cloudflared if missing
-if ! command -v cloudflared &> /dev/null; then
-  curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared
-  chmod +x /usr/local/bin/cloudflared
 fi
 
 # Start Ollama
@@ -21,18 +17,37 @@ ollama serve > /dev/null 2>&1 &
 # Wait for Ollama
 sleep 5
 
+# Pull latest code
 git pull
 
+# Install requirements
 pip install -r phone_requirements.txt
 
 # Ensure model exists
 ollama list | grep -q "qwen2.5:3b" || ollama pull qwen2.5:3b
 
-# Start API in background
-python -m uvicorn phone_main:app --host 0.0.0.0 --port 8000 --reload > /workspace/Phone/uvicorn.log 2>&1 &
+# =========================================
+# RUNTIME CONFIG (AUTO GENERATED)
+# =========================================
 
-# Wait for API to come up
-sleep 5
+CONFIG_FILE="/workspace/Phone/runtime_config.env"
 
-# Start Cloudflare tunnel in foreground so container stays alive
-cloudflared tunnel run ai
+POD_ID=$(hostname)
+PUBLIC_IP=$(curl -s ifconfig.me)
+LOCAL_IP=$(hostname -I | awk '{print $1}')
+
+cat > $CONFIG_FILE <<EOF
+POD_ID=$POD_ID
+PUBLIC_IP=$PUBLIC_IP
+LOCAL_IP=$LOCAL_IP
+START_TIME=$(date)
+EOF
+
+echo "Runtime config written:"
+cat $CONFIG_FILE
+
+# =========================================
+# START API
+# =========================================
+
+python -m uvicorn phone_main:app --host 0.0.0.0 --port 8000 --reload
