@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Phone AI Dashboard</title>
+    <link rel="stylesheet" href="/dashboard/static/style.css">
+</head>
+<body>
+    <div class="page">
+        <header class="topbar">
+            <div>
+                <h1>Live Calls</h1>
+                <div class="subtitle">Phone AI dashboard</div>
+            </div>
+            <div class="topbar-right">
+                <div class="status-wrap">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">Connecting...</span>
+                </div>
+                <button id="refreshBtn" type="button">Refresh</button>
+            </div>
+        </header>
+
+        <main>
+            <section id="summaryBar" class="summary-bar">
+                <div class="summary-card">
+                    <div class="summary-label">Active calls</div>
+                    <div class="summary-value" id="activeCalls">0</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label">Messages</div>
+                    <div class="summary-value" id="messageCount">0</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label">Last update</div>
+                    <div class="summary-value small" id="lastUpdate">-</div>
+                </div>
+            </section>
+
+            <section id="calls" class="calls"></section>
+
+            <template id="callTemplate">
+                <article class="call-card">
+                    <div class="call-header">
+                        <div>
+                            <div class="call-title"></div>
+                            <div class="call-subtitle"></div>
+                        </div>
+                    </div>
+                    <div class="messages"></div>
+                </article>
+            </template>
+
+            <template id="messageTemplate">
+                <div class="message">
+                    <div class="message-meta"></div>
+                    <div class="message-content"></div>
+                </div>
+            </template>
+        </main>
+    </div>
+
+    <script src="/dashboard/static/app.js"></script>
+</body>
+</html>
