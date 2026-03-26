@@ -45,7 +45,6 @@
       </button>
     </div>
 
-    <!-- Audio Controls -->
     <div class="px-6 pb-6 space-y-6">
       <div>
         <div class="flex items-center gap-3 text-xs text-zinc-400 mb-1">
@@ -56,32 +55,12 @@
 
       <div>
         <div class="flex items-center gap-3 text-xs text-zinc-400 mb-1">
-          <i class="fas fa-microphone"></i> <span>Mic Gain</span>
+          <i class="fas fa-microphone"></i> <span>Mic Level</span>
         </div>
-        <input id="micSlider" type="range" min="0" max="1" step="0.01" value="1" class="w-full accent-sky-500">
+        <input id="micSlider" type="range" min="0" max="1" step="0.01" value="1" class="w-full accent-sky-500" disabled>
       </div>
 
-      <!-- Voice Levels -->
-      <div class="grid grid-cols-2 gap-4 text-xs">
-        <div>
-          <div class="text-zinc-400 mb-1 flex items-center gap-2">
-            <i class="fas fa-microphone"></i> Mic Level
-          </div>
-          <div id="micLevel" class="h-2 bg-zinc-800 rounded-full overflow-hidden">
-            <div id="micBar" class="h-full bg-sky-400 w-0 transition-all"></div>
-          </div>
-        </div>
-        <div>
-          <div class="text-zinc-400 mb-1 flex items-center gap-2">
-            <i class="fas fa-volume-up"></i> Speaker Level
-          </div>
-          <div id="speakerLevel" class="h-2 bg-zinc-800 rounded-full overflow-hidden">
-            <div id="speakerBar" class="h-full bg-emerald-400 w-0 transition-all"></div>
-          </div>
-        </div>
-      </div>
-
-      <div id="log" class="bg-zinc-950 border border-zinc-800 rounded-2xl h-48 p-4 overflow-y-auto text-sm font-mono space-y-1"></div>
+      <div id="log" class="bg-zinc-950 border border-zinc-800 rounded-2xl h-52 p-4 overflow-y-auto text-sm font-mono space-y-1"></div>
     </div>
   </div>
 
@@ -97,9 +76,6 @@ document.getElementById("from").textContent = FROM;
 
 const logBox = document.getElementById("log");
 const speakerSlider = document.getElementById("speakerSlider");
-const micSlider = document.getElementById("micSlider");
-const micBar = document.getElementById("micBar");
-const speakerBar = document.getElementById("speakerBar");
 
 function log(text, color = "text-zinc-400") {
   const entry = document.createElement("div");
@@ -137,20 +113,11 @@ document.getElementById("callBtn").onclick = async () => {
     document.getElementById("endBtn").disabled = false;
 
     currentCall.on("accept", () => log("Call active", "text-emerald-400"));
-
-    currentCall.on("volume", (inputVolume, outputVolume) => {
-      micBar.style.width = `${inputVolume * 100}%`;
-      speakerBar.style.width = `${outputVolume * 100}%`;
-    });
-
     currentCall.on("disconnect", () => {
       log("Call ended", "text-red-400");
       document.getElementById("endBtn").disabled = true;
       currentCall = null;
-      micBar.style.width = "0%";
-      speakerBar.style.width = "0%";
     });
-
     currentCall.on("error", (e) => log("Call error: " + e.message, "text-red-400"));
   } catch (e) {
     log("Call failed: " + e.message, "text-red-400");
@@ -161,18 +128,10 @@ document.getElementById("endBtn").onclick = () => {
   if (currentCall) currentCall.disconnect();
 };
 
-// Speaker volume
+// Speaker volume - logs only (no real effect)
 speakerSlider.addEventListener("input", () => {
-  if (currentCall) {
-    currentCall.volume(parseFloat(speakerSlider.value));
-    log(`Speaker: ${Math.round(speakerSlider.value*100)}%`, "text-emerald-400");
-  }
-});
-
-// Mic gain (via device if supported)
-micSlider.addEventListener("input", () => {
-  log(`Mic gain set: ${Math.round(micSlider.value*100)}%`, "text-sky-400");
-  // Note: Real mic gain often requires custom Web Audio setup
+  const vol = Math.round(speakerSlider.value * 100);
+  log(`Speaker volume set to ${vol}% (browser controlled)`, "text-emerald-400");
 });
 
 init();
