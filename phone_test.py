@@ -107,3 +107,46 @@ def open_browser():
 if __name__ == "__main__":
     print("Starting Flask (API only)...")
     app.run(host="0.0.0.0", port=5050)
+
+# =========================================
+# DASHBOARD (LIVE CALL LOG UI)
+# =========================================
+from fastapi.responses import HTMLResponse
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard():
+    return """
+    <html>
+    <head>
+        <title>Dashboard</title>
+    </head>
+    <body style="background:#111;color:#eee;font-family:Arial;padding:20px;">
+        <h1>Live Calls</h1>
+        <div id="log"></div>
+
+        <script>
+        async function load() {
+            const res = await fetch('/dashboard/data');
+            const data = await res.json();
+
+            let html = '';
+            for (const [call, msgs] of Object.entries(data)) {
+                html += `<h2>${call}</h2>`;
+                msgs.forEach(m => {
+                    html += `<div><b>${m.role}:</b> ${m.content}</div>`;
+                });
+            }
+
+            document.getElementById('log').innerHTML = html;
+        }
+
+        setInterval(load, 1000);
+        load();
+        </script>
+    </body>
+    </html>
+    """
+
+@app.get("/dashboard/data")
+def dashboard_data():
+    return CALL_SESSIONS
