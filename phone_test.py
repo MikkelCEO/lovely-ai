@@ -40,9 +40,10 @@ with open(config_path, "r", encoding="utf-8") as f:
 app = Flask(__name__)
 CORS(app)
 
-# Fix for Cloudflare / reverse proxy
-app.wsgi_app = ProxyFix(app.wsgi_app)
-app.config["SERVER_NAME"] = None
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+# Tell Flask it's behind a proxy (Cloudflare)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # =========================================
 # ROUTES (CLEAN + DEBUG)
