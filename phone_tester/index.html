@@ -45,12 +45,23 @@
       </button>
     </div>
 
+    <!-- Volume + Extra Controls -->
     <div class="px-6 pb-6">
       <div class="flex justify-between mb-3 text-xs text-zinc-500">
         <span>Live Logs</span>
         <span id="status" class="text-emerald-400">Ready</span>
       </div>
-      <div id="log" class="bg-zinc-950 border border-zinc-800 rounded-2xl h-80 p-5 overflow-y-auto text-sm font-mono space-y-1"></div>
+      
+      <div class="mb-4">
+        <div class="flex items-center gap-3 text-xs text-zinc-400 mb-1">
+          <i class="fas fa-volume-up"></i>
+          <span>Volume</span>
+        </div>
+        <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="1" 
+               class="w-full accent-emerald-500">
+      </div>
+
+      <div id="log" class="bg-zinc-950 border border-zinc-800 rounded-2xl h-64 p-5 overflow-y-auto text-sm font-mono space-y-1"></div>
     </div>
   </div>
 
@@ -65,6 +76,7 @@ document.getElementById("to").textContent = CALL;
 document.getElementById("from").textContent = FROM;
 
 const logBox = document.getElementById("log");
+const volumeSlider = document.getElementById("volumeSlider");
 
 function log(text, color = "text-zinc-400") {
   const entry = document.createElement("div");
@@ -88,8 +100,6 @@ async function init() {
     });
 
     device.on("error", (e) => log("Device error: " + e.message, "text-red-400"));
-    device.on("incoming", () => log("Incoming call", "text-sky-400"));
-    device.on("tokenWillExpire", () => log("Token expiring soon", "text-amber-400"));
 
     await device.register();
   } catch (e) {
@@ -101,17 +111,20 @@ document.getElementById("callBtn").onclick = async () => {
   try {
     log("Connecting call...", "text-emerald-400");
     currentCall = await device.connect({ params: { To: CALL } });
-
     document.getElementById("endBtn").disabled = false;
 
-    currentCall.on("accept", () => log("Call accepted and active", "text-emerald-400"));
+    // Volume control for active call
+    currentCall.on("accept", () => {
+      log("Call active", "text-emerald-400");
+      if (currentCall) currentCall.volume(volumeSlider.value);
+    });
+
     currentCall.on("disconnect", () => {
-      log("Call disconnected", "text-red-400");
+      log("Call ended", "text-red-400");
       document.getElementById("endBtn").disabled = true;
       currentCall = null;
     });
-    currentCall.on("cancel", () => log("Call canceled", "text-red-400"));
-    currentCall.on("reject", () => log("Call rejected", "text-red-400"));
+
     currentCall.on("error", (e) => log("Call error: " + e.message, "text-red-400"));
   } catch (e) {
     log("Call failed: " + e.message, "text-red-400");
@@ -119,11 +132,16 @@ document.getElementById("callBtn").onclick = async () => {
 };
 
 document.getElementById("endBtn").onclick = () => {
-  if (currentCall) {
-    log("Ending call...");
-    currentCall.disconnect();
-  }
+  if (currentCall) currentCall.disconnect();
 };
+
+// Live volume control
+volumeSlider.addEventListener("input", () => {
+  if (currentCall) {
+    currentCall.volume(parseFloat(volumeSlider.value));
+    log(`Volume set to ${Math.round(volumeSlider.value * 100)}%`, "text-sky-400");
+  }
+});
 
 init();
 </script>
