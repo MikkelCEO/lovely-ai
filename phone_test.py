@@ -103,3 +103,14 @@ if __name__ == "__main__":
 
     print("Starting backend...")
     app.run(host="0.0.0.0", port=5000)
+
+# =========================================
+# DEBUG ROUTES (TEST CLOUDFLARE)
+# =========================================
+@app.route("/")
+def root():
+    return "ROOT OK"
+
+@app.route("/test")
+def test():
+    return "TEST OK"
