@@ -58,12 +58,8 @@ def token():
     return jsonify(token=token.to_jwt())
 
 # =========================================
-# ROUTES (DEBUG + TOKEN)
+# ROUTES (CLEAN + DEBUG)
 # =========================================
-@app.route("/", defaults={"path": ""})
-@app.route("/<path:path>")
-def catch_all(path):
-    return f"PATH HIT: /{path}"
 
 @app.route("/token")
 def token():
@@ -74,6 +70,13 @@ def token():
     token.add_grant(voice_grant)
 
     return jsonify(token=token.to_jwt())
+
+
+# Debug catch-all (must be LAST)
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def catch_all(path):
+    return f"PATH HIT: /{path}"
 
 # =========================================
 # ENSURE NODE + INSTALL FRONTEND
