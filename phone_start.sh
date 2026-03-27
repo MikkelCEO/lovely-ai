@@ -66,8 +66,8 @@ EOF
 echo "Runtime config (local):"
 cat $CONFIG_FILE_LOCAL
 
-# Push to NAS
-scp -v $CONFIG_FILE_LOCAL $CONFIG_FILE_NAS
+# Push to NAS via HTTP
+curl -X POST https://config.a1online.partners/update-config --data-binary @$CONFIG_FILE_LOCAL
 
 echo "Config pushed to NAS"
 
