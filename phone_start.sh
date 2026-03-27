@@ -49,7 +49,7 @@ ollama list | grep -q "qwen2.5:3b" || ollama pull qwen2.5:3b
 # RUNTIME CONFIG (AUTO GENERATED)
 # =========================================
 
-CONFIG_FILE_LOCAL="/workspace/Phone/config.txt"
+CONFIG_FILE_LOCAL="/workspace/Phone/pod_config.txt"
 CONFIG_FILE_NAS="mikkel.ceo@100.101.170.120:/volume1/Projects/ai-chat/Phone/config.txt"
 
 POD_ID=$(hostname)
