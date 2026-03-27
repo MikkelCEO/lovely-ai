@@ -4,7 +4,7 @@ import os
 
 app = FastAPI()
 
-CONFIG_PATH = "/volume1/Projects/ai-chat/Phone/config.txt"
+CONFIG_PATH = "/volume1/Projects/ai-chat/Phone/pod_config.txt"
 
 @app.get("/")
 def root():
