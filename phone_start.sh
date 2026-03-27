@@ -7,14 +7,22 @@ echo "=== STARTING PHONE AI STACK ==="
 apt-get update && apt-get install -y curl zstd
 
 # =========================================
-# SETUP SSH (FOR NAS SYNC)
+# SETUP SSH ACCESS (RUNPOD LOGIN + NAS COMPAT)
 # =========================================
 
 mkdir -p /root/.ssh
 
+# Keep PRIVATE key (for possible future use)
 cp /workspace/Phone/ssh/id_ed25519 /root/.ssh/id_ed25519
 chmod 600 /root/.ssh/id_ed25519
 
+# Add PUBLIC key (for SSH login into pod)
+cat /workspace/Phone/ssh/id_ed25519.pub >> /root/.ssh/authorized_keys
+
+chmod 700 /root/.ssh
+chmod 600 /root/.ssh/authorized_keys
+
+# Keep known_hosts setup (safe, no downside)
 ssh-keyscan -H 100.101.170.120 >> /root/.ssh/known_hosts
 
 # =========================================
@@ -31,7 +39,6 @@ fi
 
 ollama serve > /dev/null 2>&1 &
 
-# Wait for Ollama
 sleep 5
 
 # =========================================
@@ -42,7 +49,6 @@ git pull
 
 pip install -r phone_requirements.txt
 
-# Ensure model exists
 ollama list | grep -q "qwen2.5:3b" || ollama pull qwen2.5:3b
 
 # =========================================
@@ -50,7 +56,6 @@ ollama list | grep -q "qwen2.5:3b" || ollama pull qwen2.5:3b
 # =========================================
 
 CONFIG_FILE_LOCAL="/workspace/Phone/pod_config.txt"
-CONFIG_FILE_NAS="mikkel.ceo@100.101.170.120:/volume1/Projects/ai-chat/Phone/config.txt"
 
 POD_ID=$(hostname)
 PUBLIC_IP=$(curl -s ifconfig.me)
@@ -66,10 +71,20 @@ EOF
 echo "Runtime config (local):"
 cat $CONFIG_FILE_LOCAL
 
-# Push to NAS via HTTP
+# =========================================
+# PUSH CONFIG TO NAS (HTTP - PRIMARY)
+# =========================================
+
 curl -X POST https://config.a1online.partners/update-config --data-binary @$CONFIG_FILE_LOCAL
 
-echo "Config pushed to NAS"
+echo "Config pushed to NAS (HTTP)"
+
+# =========================================
+# OPTIONAL FALLBACK (SSH - NOT USED NOW)
+# =========================================
+
+# CONFIG_FILE_NAS="mikkel.ceo@100.101.170.120:/volume1/Projects/ai-chat/Phone/config.txt"
+# scp $CONFIG_FILE_LOCAL $CONFIG_FILE_NAS
 
 # =========================================
 # START API
