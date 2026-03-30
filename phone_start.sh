@@ -12,17 +12,14 @@ apt-get update && apt-get install -y curl zstd
 
 mkdir -p /root/.ssh
 
-# Keep PRIVATE key (for possible future use)
 cp /workspace/Phone/ssh/id_ed25519 /root/.ssh/id_ed25519
 chmod 600 /root/.ssh/id_ed25519
 
-# Add PUBLIC key (for SSH login into pod)
 cat /workspace/Phone/ssh/id_ed25519.pub >> /root/.ssh/authorized_keys
 
 chmod 700 /root/.ssh
 chmod 600 /root/.ssh/authorized_keys
 
-# Keep known_hosts setup (safe, no downside)
 ssh-keyscan -H 100.101.170.120 >> /root/.ssh/known_hosts
 
 # =========================================
@@ -52,7 +49,7 @@ pip install -r phone_requirements.txt
 ollama list | grep -q "qwen2.5:3b" || ollama pull qwen2.5:3b
 
 # =========================================
-# RUNTIME CONFIG (AUTO GENERATED)
+# RUNTIME CONFIG (LOCAL ONLY)
 # =========================================
 
 CONFIG_FILE_LOCAL="/workspace/Phone/pod_config.txt"
@@ -72,22 +69,16 @@ echo "Runtime config (local):"
 cat $CONFIG_FILE_LOCAL
 
 # =========================================
-# PUSH CONFIG TO NAS (HTTP - PRIMARY)
+# START API (FIRST)
 # =========================================
 
-curl -X POST https://config.a1online.partners/update-config --data-binary @$CONFIG_FILE_LOCAL
+python -m uvicorn phone_main:app --host 0.0.0.0 --port 8000 --reload &
 
-echo "Config pushed to NAS (HTTP)"
-
-# =========================================
-# OPTIONAL FALLBACK (SSH - NOT USED NOW)
-# =========================================
-
-# CONFIG_FILE_NAS="mikkel.ceo@100.101.170.120:/volume1/Projects/ai-chat/Phone/config.txt"
-# scp $CONFIG_FILE_LOCAL $CONFIG_FILE_NAS
+# Wait for API to be ready
+sleep 5
 
 # =========================================
-# START API
+# START CLOUDFLARE TUNNEL (LAST)
 # =========================================
 
-python -m uvicorn phone_main:app --host 0.0.0.0 --port 8000 --reload
+/workspace/cloudflared tunnel run ai-temp
