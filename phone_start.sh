@@ -86,7 +86,7 @@ ok "Dependencies installed"
 # =========================================
 # ENSURE MODEL (SYNC WITH SETTINGS)
 # =========================================
-MODEL=$(grep '^model=' phone_settings.txt | cut -d'=' -f2)
+MODEL=$(grep '^model=' phone_settings.txt | cut -d'=' -f2 | tr -d '\r\n')
 [ -z "$MODEL" ] && MODEL="qwen2.5:1.5b"
 
 if ollama list | grep -q "$MODEL"; then
