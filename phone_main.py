@@ -241,7 +241,7 @@ async def twilio_respond(request: Request):
     )
 
 # =========================================
-# AUDIO (WEBSOCKET - CLEAN BUFFER + WHISPER)
+# AUDIO (WHISPER → QWEN)
 # =========================================
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -280,7 +280,6 @@ async def audio_stream(ws: WebSocket):
                     pcm_chunk = audioop.ulaw2lin(mulaw_chunk, 2)
                     audio_buffer += pcm_chunk
 
-                    # Process every ~2 seconds (KEY FIX)
                     if time.time() - last_process_time > 2:
                         if len(audio_buffer) > 16000:
                             try:
@@ -296,9 +295,12 @@ async def audio_stream(ws: WebSocket):
                                     for segment in segments:
                                         text = segment.text.strip()
 
-                                        # FILTER NOISE
                                         if len(text) > 2 and text.lower() not in {"you", ".", "..."}:
                                             print(f"🗣️ {text}")
+
+                                            # 👉 SEND TO QWEN
+                                            reply = get_qwen_reply(call_sid, text)
+                                            print(f"🤖 {reply}")
 
                                 audio_buffer = b""
                                 last_process_time = time.time()
