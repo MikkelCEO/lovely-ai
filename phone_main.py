@@ -193,7 +193,13 @@ def root():
 @app.api_route("/twilio", methods=["GET", "POST"])
 async def twilio_start():
     return Response(
-        build_twiml("Hello. How may I help you?"),
+        """<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say voice="alice">Testing live audio stream.</Say>
+    <Connect>
+        <Stream url="wss://ai.a1online.partners/audio" />
+    </Connect>
+</Response>""",
         media_type="application/xml"
     )
 
