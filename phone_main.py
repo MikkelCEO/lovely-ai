@@ -241,13 +241,15 @@ async def twilio_respond(request: Request):
     )
 
 # =========================================
-# AUDIO (WEBSOCKET - BUFFER + WHISPER)
+# AUDIO (WEBSOCKET - MULAW → WAV → WHISPER)
 # =========================================
 
 from fastapi import WebSocket, WebSocketDisconnect
 import json
 import base64
 import tempfile
+import audioop
+import wave
 
 @app.websocket("/audio")
 async def audio_stream(ws: WebSocket):
@@ -272,15 +274,22 @@ async def audio_stream(ws: WebSocket):
                 payload = msg.get("media", {}).get("payload")
 
                 if payload:
-                    audio_chunk = base64.b64decode(payload)
-                    audio_buffer += audio_chunk
+                    mulaw_chunk = base64.b64decode(payload)
 
-                    # Only process every ~1 second of audio
-                    if len(audio_buffer) > 8000:
+                    # Convert μ-law → PCM16
+                    pcm_chunk = audioop.ulaw2lin(mulaw_chunk, 2)
+
+                    audio_buffer += pcm_chunk
+
+                    # Process every ~1 sec
+                    if len(audio_buffer) > 16000:
                         try:
                             with tempfile.NamedTemporaryFile(suffix=".wav") as f:
-                                f.write(audio_buffer)
-                                f.flush()
+                                with wave.open(f, "wb") as wf:
+                                    wf.setnchannels(1)
+                                    wf.setsampwidth(2)
+                                    wf.setframerate(8000)
+                                    wf.writeframes(audio_buffer)
 
                                 segments, _ = whisper_model.transcribe(f.name)
 
