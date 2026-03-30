@@ -240,7 +240,7 @@ async def twilio_respond(request: Request):
     )
 
 # =========================================
-# AUDIO (WHISPER → QWEN)
+# AUDIO (LOW LATENCY WHISPER → QWEN)
 # =========================================
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -279,8 +279,9 @@ async def audio_stream(ws: WebSocket):
                     pcm_chunk = audioop.ulaw2lin(mulaw_chunk, 2)
                     audio_buffer += pcm_chunk
 
-                    if time.time() - last_process_time > 2:
-                        if len(audio_buffer) > 16000:
+                    # 🔥 PROCESS FASTER (0.8 sec instead of 2 sec)
+                    if time.time() - last_process_time > 0.8:
+                        if len(audio_buffer) > 8000:
                             try:
                                 with tempfile.NamedTemporaryFile(suffix=".wav") as f:
                                     with wave.open(f, "wb") as wf:
@@ -289,15 +290,18 @@ async def audio_stream(ws: WebSocket):
                                         wf.setframerate(8000)
                                         wf.writeframes(audio_buffer)
 
-                                    segments, _ = whisper_model.transcribe(f.name)
+                                    segments, _ = whisper_model.transcribe(
+                                        f.name,
+                                        beam_size=1,   # 🔥 faster
+                                        vad_filter=True
+                                    )
 
                                     for segment in segments:
                                         text = segment.text.strip()
 
-                                        if len(text) > 2 and text.lower() not in {"you", ".", "..."}:
+                                        if len(text) > 2:
                                             print(f"🗣️ {text}")
 
-                                            # 👉 SEND TO QWEN
                                             reply = get_qwen_reply(call_sid, text)
                                             print(f"🤖 {reply}")
 
