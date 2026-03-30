@@ -9,7 +9,7 @@ import warnings
 import json
 from fastapi import WebSocket, WebSocketDisconnect
 
-SCRIPT_VERSION = "2026-03-30 v13"
+SCRIPT_VERSION = "2026-03-30 v14"
 print(f"=== TWILIO PHONE SCRIPT STARTED - VERSION {SCRIPT_VERSION} ===")
 
 BASE_DIR = os.path.dirname(__file__)
@@ -146,7 +146,7 @@ async def twilio_respond(request: Request):
         return Response(build_twiml("I didn't catch that. Please speak again."), media_type="application/xml")
     if speech.lower() in {"bye", "goodbye", "stop", "hang up"}:
         CALL_SESSIONS.pop(call_sid, None)
-        print(f"[{call_sid}] Call ended by user")
+        print(f"[{call_sid}] Call ended by user (hang up detected)")
         return Response(build_twiml("Goodbye.", end_call=True), media_type="application/xml")
     reply = get_qwen_reply(call_sid, speech)
     return Response(build_twiml(reply), media_type="application/xml")
@@ -169,10 +169,10 @@ async def audio_stream(ws: WebSocket):
             elif event == "media":
                 pass
             elif event == "stop":
-                print(f"[{msg.get('streamSid', 'unknown')}] Call ended (stop event)")
+                print(f"[{msg.get('streamSid', 'unknown')}] Call ended by Twilio (stop event)")
                 break
     except WebSocketDisconnect:
-        print("❌ WebSocket disconnected")
+        print("❌ WebSocket disconnected - call likely ended")
     except Exception as e:
         print("WS error:", e)
 
