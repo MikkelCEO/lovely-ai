@@ -129,11 +129,3 @@ ok "Runtime config written"
 # =========================================
 python -m uvicorn phone_main:app --host 0.0.0.0 --port 8000 --reload > /dev/null 2>&1 &
 wait_for_service "http://localhost:8000" "FastAPI running (8000)"
-
-# =========================================
-# FINAL SUMMARY
-# =========================================
-echo ""
-echo "=== SYSTEM READY ==="
-echo "URL: https://ai.a1online.partners"
-echo ""
