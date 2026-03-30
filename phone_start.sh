@@ -129,18 +129,6 @@ ok "Runtime config written"
 python -m uvicorn phone_main:app --host 0.0.0.0 --port 8000 --reload > /dev/null 2>&1 &
 wait_for_service "http://localhost:8000" "FastAPI running (8000)"
 
-# =========================================
-# START CLOUDFLARE (LAST)
-# =========================================
-/workspace/cloudflared tunnel run ai-temp > /dev/null 2>&1 &
-
-sleep 5
-
-if pgrep -f cloudflared > /dev/null; then
-  ok "Cloudflare tunnel running"
-else
-  fail "Cloudflare failed"
-fi
 
 # =========================================
 # FINAL SUMMARY
