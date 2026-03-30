@@ -225,44 +225,12 @@ async def twilio_respond(request: Request):
     )
 
 # =========================================
-# AUDIO (WEBSOCKET - MEDIA STREAM READY)
+# AUDIO (DUMMY)
 # =========================================
 
-from fastapi import WebSocket, WebSocketDisconnect
-import json
-import base64
-
-@app.websocket("/audio")
-async def audio_stream(ws: WebSocket):
-    await ws.accept()
-    print("🔌 Twilio Media Stream connected")
-
-    call_sid = None
-
-    try:
-        while True:
-            data = await ws.receive_text()
-            msg = json.loads(data)
-
-            event = msg.get("event")
-
-            if event == "start":
-                call_sid = msg.get("start", {}).get("callSid")
-                print(f"📞 Call started: {call_sid}")
-
-            elif event == "media":
-                payload = msg.get("media", {}).get("payload")
-
-                if payload:
-                    audio_bytes = base64.b64decode(payload)
-                    print(f"🎧 Audio chunk received: {len(audio_bytes)} bytes")
-
-            elif event == "stop":
-                print(f"📴 Call ended: {call_sid}")
-                break
-
-    except WebSocketDisconnect:
-        print("❌ WebSocket disconnected")
+@app.api_route("/audio", methods=["GET", "POST"])
+async def audio_dummy():
+    return Response(status_code=426)
 
 # =========================================
 # START SERVICES
