@@ -93,6 +93,16 @@ def start_ollama():
     raise RuntimeError("Ollama failed to start")
 
 # =========================================
+# WHISPER (STT)
+# =========================================
+
+from faster_whisper import WhisperModel
+
+print("Loading Whisper model...")
+whisper_model = WhisperModel("base", compute_type="int8")
+print("Whisper ready")
+
+# =========================================
 # FASTAPI INIT
 # =========================================
 
