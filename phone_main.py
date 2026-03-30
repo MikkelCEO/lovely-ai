@@ -207,7 +207,7 @@ async def twilio_start():
 <Response>
     <Say voice="alice">Hi, you can speak now.</Say>
     <Connect>
-        <Stream url="wss://ai.a1online.partners/audio" />
+        <Stream url="wss://ai.a1online.partners/audio" track="inbound_audio"/>
     </Connect>
 </Response>""",
         media_type="application/xml"
