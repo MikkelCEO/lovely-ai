@@ -9,14 +9,39 @@ echo ""
 # =========================================
 # STATUS HELPERS
 # =========================================
-ok() { echo "🟢 $1"; }
+ok()   { echo "🟢 $1"; }
+warn() { echo "🟡 $1"; }
 fail() { echo "🔴 $1"; }
+
+wait_for_service() {
+  URL=$1
+  NAME=$2
+  for i in {1..10}; do
+    if curl -s "$URL" > /dev/null; then
+      ok "$NAME"
+      return 0
+    fi
+    sleep 1
+  done
+  fail "$NAME"
+  return 1
+}
 
 # =========================================
 # BASE INSTALL (SILENT)
 # =========================================
 apt-get update -qq > /dev/null 2>&1
 apt-get install -y curl zstd -qq > /dev/null 2>&1
+
+# =========================================
+# GPU CHECK
+# =========================================
+if command -v nvidia-smi &> /dev/null; then
+  GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -n1)
+  ok "GPU detected ($GPU_NAME)"
+else
+  warn "No GPU detected (running CPU mode)"
+fi
 
 # =========================================
 # SSH SETUP
@@ -46,14 +71,7 @@ fi
 # START OLLAMA
 # =========================================
 ollama serve > /dev/null 2>&1 &
-
-sleep 3
-
-if curl -s http://localhost:11434 > /dev/null; then
-  ok "Ollama running"
-else
-  fail "Ollama failed"
-fi
+wait_for_service "http://localhost:11434" "Ollama running"
 
 # =========================================
 # UPDATE PROJECT + INSTALL
@@ -66,11 +84,26 @@ pip install "uvicorn[standard]" > /dev/null 2>&1
 ok "Dependencies installed"
 
 # =========================================
-# ENSURE MODEL (UPDATED TO 1.5b)
+# ENSURE MODEL
 # =========================================
-ollama list | grep -q "qwen2.5:1.5b" || ollama pull qwen2.5:1.5b > /dev/null 2>&1
+MODEL="qwen2.5:1.5b"
 
-ok "Model ready (qwen2.5:1.5b)"
+if ollama list | grep -q "$MODEL"; then
+  ok "Model already present ($MODEL)"
+else
+  warn "Downloading model ($MODEL)..."
+  ollama pull $MODEL > /dev/null 2>&1
+  ok "Model downloaded"
+fi
+
+# =========================================
+# MODEL WARMUP (IMPORTANT)
+# =========================================
+curl -s http://localhost:11434/api/chat \
+  -d '{"model":"qwen2.5:1.5b","messages":[{"role":"user","content":"hi"}]}' \
+  > /dev/null 2>&1
+
+ok "Model warmed up"
 
 # =========================================
 # RUNTIME CONFIG
@@ -94,17 +127,10 @@ ok "Runtime config written"
 # START FASTAPI
 # =========================================
 python -m uvicorn phone_main:app --host 0.0.0.0 --port 8000 --reload > /dev/null 2>&1 &
-
-sleep 3
-
-if curl -s http://localhost:8000 > /dev/null; then
-  ok "FastAPI running (8000)"
-else
-  fail "FastAPI failed"
-fi
+wait_for_service "http://localhost:8000" "FastAPI running (8000)"
 
 # =========================================
-# START CLOUDFLARE (LAST!)
+# START CLOUDFLARE (LAST)
 # =========================================
 /workspace/cloudflared tunnel run ai-temp > /dev/null 2>&1 &
 
@@ -117,8 +143,9 @@ else
 fi
 
 # =========================================
-# FINAL STATUS
+# FINAL SUMMARY
 # =========================================
 echo ""
 echo "=== SYSTEM READY ==="
+echo "URL: https://ai.a1online.partners"
 echo ""
