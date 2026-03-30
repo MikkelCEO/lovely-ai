@@ -7,14 +7,15 @@ import requests
 import time
 import warnings
 import json
+import base64
 from fastapi import WebSocket, WebSocketDisconnect
 
-SCRIPT_VERSION = "2026-03-30 v11"
+SCRIPT_VERSION = "2026-03-30 v9"
 print(f"=== TWILIO PHONE SCRIPT STARTED - VERSION {SCRIPT_VERSION} ===")
 
 BASE_DIR = os.path.dirname(__file__)
 
-# Load functions (unchanged)
+# Load files and settings (unchanged)
 def load_file(filename: str, default: str = "") -> str:
     path = os.path.join(BASE_DIR, filename)
     if os.path.exists(path):
@@ -51,7 +52,7 @@ OLLAMA_MODEL = SETTINGS.get("model", "qwen2.5:3b")
 TEMPERATURE = float(SETTINGS.get("temperature", "0.2"))
 TIMEOUT = int(SETTINGS.get("timeout", "60"))
 
-# Start Ollama
+# Start Ollama (unchanged)
 def start_ollama():
     try:
         requests.get("http://localhost:11434", timeout=2)
@@ -70,7 +71,7 @@ def start_ollama():
             time.sleep(1)
     raise RuntimeError("Ollama failed to start")
 
-# Whisper
+# Whisper (unchanged)
 from faster_whisper import WhisperModel
 print("Loading Whisper model...")
 whisper_model = WhisperModel("base", compute_type="int8")
@@ -91,13 +92,11 @@ def build_twiml(say_text: str = "", end_call: bool = False) -> str:
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say voice="alice">{say_text}</Say>
-    <Pause length="1"/>
-    <Gather input="speech" action="/twilio/respond" method="POST" 
-            speechTimeout="auto" timeout="3" bargeIn="true" 
-            actionOnEmptyResult="true"></Gather>
+    <Gather input="speech" action="/twilio/respond" method="POST" speechTimeout="auto" timeout="5" bargeIn="true"></Gather>
     <Redirect method="POST">/twilio/respond</Redirect>
 </Response>"""
 
+# LLM (unchanged)
 def get_qwen_reply(call_sid: str, user_text: str) -> str:
     if call_sid not in CALL_SESSIONS:
         CALL_SESSIONS[call_sid] = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -116,24 +115,21 @@ def get_qwen_reply(call_sid: str, user_text: str) -> str:
         print("OLLAMA ERROR:", e)
         reply = "Sorry, something went wrong."
     CALL_SESSIONS[call_sid].append({"role": "assistant", "content": reply})
-    print(f"[{call_sid}] User: {user_text[:80]}...")   # restored logging
-    print(f"[{call_sid}] AI: {reply[:80]}...")         # restored logging
     return reply
 
+# Fixed routes
 @app.get("/")
 def root():
     return {"status": "ok", "model": OLLAMA_MODEL, "version": SCRIPT_VERSION}
 
 @app.api_route("/twilio", methods=["GET", "POST"])
 async def twilio_start():
+    # Initial TwiML with Say + Gather (fallback if stream fails)
     return Response(
         """<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say voice="alice">Hello. How can I help you?</Say>
-    <Pause length="1"/>
-    <Gather input="speech" action="/twilio/respond" method="POST" 
-            speechTimeout="auto" timeout="3" bargeIn="true" 
-            actionOnEmptyResult="true"></Gather>
+    <Gather input="speech" action="/twilio/respond" method="POST" speechTimeout="auto" timeout="5" bargeIn="true"></Gather>
     <Redirect method="POST">/twilio/respond</Redirect>
 </Response>""",
         media_type="application/xml"
@@ -144,7 +140,6 @@ async def twilio_respond(request: Request):
     form = await request.form()
     call_sid = str(form.get("CallSid", "default_call"))
     speech = str(form.get("SpeechResult", "")).strip()
-    print(f"[{call_sid}] Received speech: {speech}")   # restored logging
     if not speech:
         return Response(build_twiml("I didn't catch that. Please speak again."), media_type="application/xml")
     if speech.lower() in {"bye", "goodbye", "stop", "hang up"}:
@@ -153,6 +148,7 @@ async def twilio_respond(request: Request):
     reply = get_qwen_reply(call_sid, speech)
     return Response(build_twiml(reply), media_type="application/xml")
 
+# Improved WebSocket (keep alive + consume media)
 @app.websocket("/audio")
 async def audio_stream(ws: WebSocket):
     await ws.accept()
@@ -169,7 +165,7 @@ async def audio_stream(ws: WebSocket):
             if event == "start":
                 print("📞 Call started")
             elif event == "media":
-                pass
+                pass  # consume audio
             elif event == "stop":
                 print("📴 Call ended")
                 break
@@ -181,7 +177,7 @@ async def audio_stream(ws: WebSocket):
 # Start services
 start_ollama()
 
-# Dashboard
+# Dashboard (unchanged)
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 DASHBOARD_DIR = os.path.join(BASE_DIR, "dashboard")
