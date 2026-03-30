@@ -84,26 +84,27 @@ pip install "uvicorn[standard]" > /dev/null 2>&1
 ok "Dependencies installed"
 
 # =========================================
-# ENSURE MODEL
+# ENSURE MODEL (SYNC WITH SETTINGS)
 # =========================================
-MODEL="qwen2.5:1.5b"
+MODEL=$(grep '^model=' phone_settings.txt | cut -d'=' -f2)
+[ -z "$MODEL" ] && MODEL="qwen2.5:1.5b"
 
 if ollama list | grep -q "$MODEL"; then
   ok "Model already present ($MODEL)"
 else
   warn "Downloading model ($MODEL)..."
   ollama pull $MODEL > /dev/null 2>&1
-  ok "Model downloaded"
+  ok "Model downloaded ($MODEL)"
 fi
 
 # =========================================
-# MODEL WARMUP (IMPORTANT)
+# MODEL WARMUP
 # =========================================
 curl -s http://localhost:11434/api/chat \
-  -d '{"model":"qwen2.5:1.5b","messages":[{"role":"user","content":"hi"}]}' \
+  -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}" \
   > /dev/null 2>&1
 
-ok "Model warmed up"
+ok "Model warmed up ($MODEL)"
 
 # =========================================
 # RUNTIME CONFIG
@@ -128,7 +129,6 @@ ok "Runtime config written"
 # =========================================
 python -m uvicorn phone_main:app --host 0.0.0.0 --port 8000 --reload > /dev/null 2>&1 &
 wait_for_service "http://localhost:8000" "FastAPI running (8000)"
-
 
 # =========================================
 # FINAL SUMMARY
