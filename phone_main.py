@@ -11,11 +11,21 @@ import requests
 import time
 import warnings
 import json
+import logging
 
-SCRIPT_VERSION = "2026-03-30 v14"
-print(f"=== TWILIO PHONE SCRIPT STARTED - VERSION {SCRIPT_VERSION} ===")
+SCRIPT_VERSION = "2026-03-30 v15"
+print(f"\n=== PHONE AI STARTED - VERSION {SCRIPT_VERSION} ===\n")
 
 BASE_DIR = os.path.dirname(__file__)
+
+# =========================================
+# LOGGING (CLEAN)
+# =========================================
+logging.getLogger("uvicorn.access").disabled = True
+logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
+
+def log(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}")
 
 # =========================================
 # FILE LOADERS
@@ -38,27 +48,13 @@ def load_settings():
                     settings[k.strip()] = v.strip()
     return settings
 
-def load_runtime_config():
-    config = {}
-    path = "/volume1/Projects/ai-chat/Phone/config.txt"
-    if os.path.exists(path):
-        with open(path, "r") as f:
-            for line in f:
-                if "=" in line:
-                    k, v = line.strip().split("=", 1)
-                    config[k] = v
-    return config
-
 # =========================================
 # CONFIG
 # =========================================
-RUNTIME_CONFIG = load_runtime_config()
 SYSTEM_PROMPT = load_file("phone_prompt.txt", "You are a helpful assistant.")
 SETTINGS = load_settings()
 
-# ✅ STEP 1 CHANGE: smaller model
 OLLAMA_MODEL = SETTINGS.get("model", "qwen2.5:1.5b")
-
 TEMPERATURE = float(SETTINGS.get("temperature", "0.2"))
 TIMEOUT = int(SETTINGS.get("timeout", "60"))
 
@@ -68,31 +64,23 @@ TIMEOUT = int(SETTINGS.get("timeout", "60"))
 def start_ollama():
     try:
         requests.get("http://localhost:11434", timeout=2)
-        print("Ollama already running")
+        log("Ollama already running")
         return
     except:
         pass
 
-    print("Starting Ollama...")
+    log("Starting Ollama...")
     subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     for _ in range(30):
         try:
             requests.get("http://localhost:11434", timeout=2)
-            print("Ollama started")
+            log("Ollama started")
             return
         except:
             time.sleep(1)
 
     raise RuntimeError("Ollama failed to start")
-
-# =========================================
-# WHISPER (UNCHANGED)
-# =========================================
-from faster_whisper import WhisperModel
-print("Loading Whisper model...")
-whisper_model = WhisperModel("base", compute_type="int8")
-print("Whisper ready")
 
 # =========================================
 # FASTAPI INIT
@@ -109,7 +97,7 @@ def xml_escape(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&apos;")
 
 # =========================================
-# TWIML BUILDER
+# TWIML BUILDER (FIXED TIMING)
 # =========================================
 def build_twiml(say_text: str = "", end_call: bool = False) -> str:
     say_text = xml_escape(say_text)
@@ -118,12 +106,11 @@ def build_twiml(say_text: str = "", end_call: bool = False) -> str:
         return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response><Say voice="alice">{say_text}</Say><Hangup/></Response>"""
 
-    # ✅ STEP 1 CHANGE: removed Pause + timeout=1
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say voice="alice">{say_text}</Say>
     <Gather input="speech" action="/twilio/respond" method="POST"
-            speechTimeout="auto" timeout="1" bargeIn="true"
+            speechTimeout="1" timeout="3" bargeIn="true"
             actionOnEmptyResult="true"></Gather>
     <Redirect method="POST">/twilio/respond</Redirect>
 </Response>"""
@@ -137,6 +124,8 @@ def get_qwen_reply(call_sid: str, user_text: str) -> str:
 
     CALL_SESSIONS[call_sid].append({"role": "user", "content": user_text})
 
+    start = time.time()
+
     try:
         response = requests.post(
             "http://localhost:11434/api/chat",
@@ -149,22 +138,19 @@ def get_qwen_reply(call_sid: str, user_text: str) -> str:
             timeout=TIMEOUT
         )
 
+        duration = round(time.time() - start, 2)
+
         data = response.json()
         reply = data.get("message", {}).get("content") or data.get("response") or "Sorry, something went wrong."
-
-        if isinstance(reply, dict):
-            reply = str(reply)
-
         reply = reply.strip()
 
+        log(f"{call_sid} | AI ({duration}s): {reply}")
+
     except Exception as e:
-        print("OLLAMA ERROR:", e)
+        log(f"{call_sid} | OLLAMA ERROR: {e}")
         reply = "Sorry, something went wrong."
 
     CALL_SESSIONS[call_sid].append({"role": "assistant", "content": reply})
-
-    print(f"[{call_sid}] User: {user_text[:80]}")
-    print(f"[{call_sid}] AI: {reply[:80]}")
 
     return reply
 
@@ -177,12 +163,14 @@ def root():
 
 @app.api_route("/twilio", methods=["GET", "POST"])
 async def twilio_start():
+    log("Incoming call")
+
     return Response(
         """<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say voice="alice">Hello. How can I help you?</Say>
     <Gather input="speech" action="/twilio/respond" method="POST"
-            speechTimeout="auto" timeout="1" bargeIn="true"
+            speechTimeout="1" timeout="3" bargeIn="true"
             actionOnEmptyResult="true"></Gather>
     <Redirect method="POST">/twilio/respond</Redirect>
 </Response>""",
@@ -196,14 +184,15 @@ async def twilio_respond(request: Request):
     call_sid = str(form.get("CallSid", "default_call"))
     speech = str(form.get("SpeechResult", "")).strip()
 
-    print(f"[{call_sid}] Received: {speech}")
-
     if not speech:
-        return Response(build_twiml("I didn't catch that. Please speak again."), media_type="application/xml")
+        log(f"{call_sid} | No speech detected")
+        return Response(build_twiml("I didn't catch that. Please repeat."), media_type="application/xml")
+
+    log(f"{call_sid} | User: {speech}")
 
     if speech.lower() in {"bye", "goodbye", "stop", "hang up"}:
         CALL_SESSIONS.pop(call_sid, None)
-        print(f"[{call_sid}] Call ended by user")
+        log(f"{call_sid} | Call ended")
         return Response(build_twiml("Goodbye.", end_call=True), media_type="application/xml")
 
     reply = get_qwen_reply(call_sid, speech)
@@ -216,36 +205,22 @@ async def twilio_respond(request: Request):
 @app.websocket("/audio")
 async def audio_stream(ws: WebSocket):
     await ws.accept()
-    print("🔌 Twilio Media Stream connected")
-
-    last_ping = time.time()
+    log("Media stream connected")
 
     try:
         while True:
             data = await ws.receive_text()
-
-            if time.time() - last_ping > 5:
-                await ws.send_text(json.dumps({"event": "ping"}))
-                last_ping = time.time()
-
             msg = json.loads(data)
-            event = msg.get("event")
 
-            if event == "start":
-                print("📞 Call started")
+            if msg.get("event") == "start":
+                log("Stream started")
 
-            elif event == "media":
-                pass
-
-            elif event == "stop":
-                print(f"[{msg.get('streamSid', 'unknown')}] Call ended (stop event)")
+            elif msg.get("event") == "stop":
+                log("Stream stopped")
                 break
 
     except WebSocketDisconnect:
-        print("❌ WebSocket disconnected")
-
-    except Exception as e:
-        print("WS error:", e)
+        log("WebSocket disconnected")
 
 # =========================================
 # DASHBOARD
