@@ -9,7 +9,7 @@ import warnings
 import json
 from fastapi import WebSocket, WebSocketDisconnect
 
-SCRIPT_VERSION = "2026-03-30 v9-fixed"
+SCRIPT_VERSION = "2026-03-30 v13"
 print(f"=== TWILIO PHONE SCRIPT STARTED - VERSION {SCRIPT_VERSION} ===")
 
 BASE_DIR = os.path.dirname(__file__)
@@ -146,6 +146,7 @@ async def twilio_respond(request: Request):
         return Response(build_twiml("I didn't catch that. Please speak again."), media_type="application/xml")
     if speech.lower() in {"bye", "goodbye", "stop", "hang up"}:
         CALL_SESSIONS.pop(call_sid, None)
+        print(f"[{call_sid}] Call ended by user")
         return Response(build_twiml("Goodbye.", end_call=True), media_type="application/xml")
     reply = get_qwen_reply(call_sid, speech)
     return Response(build_twiml(reply), media_type="application/xml")
@@ -168,7 +169,7 @@ async def audio_stream(ws: WebSocket):
             elif event == "media":
                 pass
             elif event == "stop":
-                print("📴 Call ended")
+                print(f"[{msg.get('streamSid', 'unknown')}] Call ended (stop event)")
                 break
     except WebSocketDisconnect:
         print("❌ WebSocket disconnected")
