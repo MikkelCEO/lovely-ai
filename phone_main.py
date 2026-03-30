@@ -271,7 +271,17 @@ async def audio_stream(ws: WebSocket):
 
                 if payload:
                     audio_bytes = base64.b64decode(payload)
-                    print(f"🎧 Audio chunk received: {len(audio_bytes)} bytes")
+
+                    try:
+                        segments, _ = whisper_model.transcribe(audio_bytes)
+
+                        for segment in segments:
+                            text = segment.text.strip()
+                            if text:
+                                print(f"🗣️ {text}")
+
+                    except Exception as e:
+                        print("Whisper error:", e)
 
             elif event == "stop":
                 print(f"📴 Call ended: {call_sid}")
