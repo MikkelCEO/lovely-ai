@@ -205,7 +205,6 @@ async def twilio_start():
     return Response(
         """<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say voice="alice">Testing live audio stream.</Say>
     <Connect>
         <Stream url="wss://ai.a1online.partners/audio" />
     </Connect>
