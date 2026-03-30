@@ -3,3 +3,4 @@ uvicorn
 requests
 ollama
 python-multipart
+faster-whisper
