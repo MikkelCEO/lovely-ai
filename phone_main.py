@@ -9,12 +9,12 @@ import warnings
 import json
 from fastapi import WebSocket, WebSocketDisconnect
 
-SCRIPT_VERSION = "2026-03-30 v10"
+SCRIPT_VERSION = "2026-03-30 v11"
 print(f"=== TWILIO PHONE SCRIPT STARTED - VERSION {SCRIPT_VERSION} ===")
 
 BASE_DIR = os.path.dirname(__file__)
 
-# Load files and settings
+# Load functions (unchanged)
 def load_file(filename: str, default: str = "") -> str:
     path = os.path.join(BASE_DIR, filename)
     if os.path.exists(path):
@@ -83,13 +83,11 @@ CALL_SESSIONS: Dict[str, List[dict]] = {}
 def xml_escape(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&apos;")
 
-# Improved build_twiml with shorter timeout + pause
 def build_twiml(say_text: str = "", end_call: bool = False) -> str:
     say_text = xml_escape(say_text)
     if end_call:
         return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response><Say voice="alice">{say_text}</Say><Hangup/></Response>"""
-    
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say voice="alice">{say_text}</Say>
@@ -100,7 +98,6 @@ def build_twiml(say_text: str = "", end_call: bool = False) -> str:
     <Redirect method="POST">/twilio/respond</Redirect>
 </Response>"""
 
-# LLM
 def get_qwen_reply(call_sid: str, user_text: str) -> str:
     if call_sid not in CALL_SESSIONS:
         CALL_SESSIONS[call_sid] = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -119,9 +116,10 @@ def get_qwen_reply(call_sid: str, user_text: str) -> str:
         print("OLLAMA ERROR:", e)
         reply = "Sorry, something went wrong."
     CALL_SESSIONS[call_sid].append({"role": "assistant", "content": reply})
+    print(f"[{call_sid}] User: {user_text[:80]}...")   # restored logging
+    print(f"[{call_sid}] AI: {reply[:80]}...")         # restored logging
     return reply
 
-# Routes
 @app.get("/")
 def root():
     return {"status": "ok", "model": OLLAMA_MODEL, "version": SCRIPT_VERSION}
@@ -146,6 +144,7 @@ async def twilio_respond(request: Request):
     form = await request.form()
     call_sid = str(form.get("CallSid", "default_call"))
     speech = str(form.get("SpeechResult", "")).strip()
+    print(f"[{call_sid}] Received speech: {speech}")   # restored logging
     if not speech:
         return Response(build_twiml("I didn't catch that. Please speak again."), media_type="application/xml")
     if speech.lower() in {"bye", "goodbye", "stop", "hang up"}:
@@ -154,7 +153,6 @@ async def twilio_respond(request: Request):
     reply = get_qwen_reply(call_sid, speech)
     return Response(build_twiml(reply), media_type="application/xml")
 
-# WebSocket
 @app.websocket("/audio")
 async def audio_stream(ws: WebSocket):
     await ws.accept()
