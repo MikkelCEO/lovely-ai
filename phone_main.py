@@ -19,13 +19,16 @@ print(f"\n=== PHONE AI STARTED - VERSION {SCRIPT_VERSION} ===\n")
 BASE_DIR = os.path.dirname(__file__)
 
 # =========================================
-# LOGGING (CLEAN)
+# LOGGING (VISIBLE + CLEAN)
 # =========================================
+import sys
+import logging
+
 logging.getLogger("uvicorn.access").disabled = True
 logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
 
 def log(msg):
-    print(f"[{time.strftime('%H:%M:%S')}] {msg}")
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
 # =========================================
 # FILE LOADERS
