@@ -46,6 +46,9 @@ git pull
 
 pip install -r phone_requirements.txt
 
+pip install -r phone_requirements.txt
+pip install "uvicorn[standard]"
+
 ollama list | grep -q "qwen2.5:3b" || ollama pull qwen2.5:3b
 
 # =========================================
