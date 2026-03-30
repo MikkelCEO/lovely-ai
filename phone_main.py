@@ -241,7 +241,7 @@ async def twilio_respond(request: Request):
     )
 
 # =========================================
-# AUDIO (WEBSOCKET - MULAW → WAV → WHISPER)
+# AUDIO (WEBSOCKET - CLEAN BUFFER + WHISPER)
 # =========================================
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -250,6 +250,7 @@ import base64
 import tempfile
 import audioop
 import wave
+import time
 
 @app.websocket("/audio")
 async def audio_stream(ws: WebSocket):
@@ -258,6 +259,7 @@ async def audio_stream(ws: WebSocket):
 
     call_sid = None
     audio_buffer = b""
+    last_process_time = time.time()
 
     try:
         while True:
@@ -275,33 +277,34 @@ async def audio_stream(ws: WebSocket):
 
                 if payload:
                     mulaw_chunk = base64.b64decode(payload)
-
-                    # Convert μ-law → PCM16
                     pcm_chunk = audioop.ulaw2lin(mulaw_chunk, 2)
-
                     audio_buffer += pcm_chunk
 
-                    # Process every ~1 sec
-                    if len(audio_buffer) > 16000:
-                        try:
-                            with tempfile.NamedTemporaryFile(suffix=".wav") as f:
-                                with wave.open(f, "wb") as wf:
-                                    wf.setnchannels(1)
-                                    wf.setsampwidth(2)
-                                    wf.setframerate(8000)
-                                    wf.writeframes(audio_buffer)
+                    # Process every ~2 seconds (KEY FIX)
+                    if time.time() - last_process_time > 2:
+                        if len(audio_buffer) > 16000:
+                            try:
+                                with tempfile.NamedTemporaryFile(suffix=".wav") as f:
+                                    with wave.open(f, "wb") as wf:
+                                        wf.setnchannels(1)
+                                        wf.setsampwidth(2)
+                                        wf.setframerate(8000)
+                                        wf.writeframes(audio_buffer)
 
-                                segments, _ = whisper_model.transcribe(f.name)
+                                    segments, _ = whisper_model.transcribe(f.name)
 
-                                for segment in segments:
-                                    text = segment.text.strip()
-                                    if text:
-                                        print(f"🗣️ {text}")
+                                    for segment in segments:
+                                        text = segment.text.strip()
 
-                            audio_buffer = b""
+                                        # FILTER NOISE
+                                        if len(text) > 2 and text.lower() not in {"you", ".", "..."}:
+                                            print(f"🗣️ {text}")
 
-                        except Exception as e:
-                            print("Whisper error:", e)
+                                audio_buffer = b""
+                                last_process_time = time.time()
+
+                            except Exception as e:
+                                print("Whisper error:", e)
 
             elif event == "stop":
                 print(f"📴 Call ended: {call_sid}")
