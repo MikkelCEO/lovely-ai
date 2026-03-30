@@ -205,8 +205,9 @@ async def twilio_start():
     return Response(
         """<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say voice="alice">Hi, you can speak now.</Say>
-    <Pause length="60"/>
+    <Connect>
+        <Stream url="wss://ai.a1online.partners/audio" />
+    </Connect>
 </Response>""",
         media_type="application/xml"
     )
@@ -239,15 +240,12 @@ async def twilio_respond(request: Request):
     )
 
 # =========================================
-# AUDIO (LOW LATENCY WHISPER → QWEN)
+# AUDIO (KEEP STREAM ALIVE)
 # =========================================
 
 from fastapi import WebSocket, WebSocketDisconnect
 import json
 import base64
-import tempfile
-import audioop
-import wave
 import time
 
 @app.websocket("/audio")
@@ -255,63 +253,29 @@ async def audio_stream(ws: WebSocket):
     await ws.accept()
     print("🔌 Twilio Media Stream connected")
 
-    call_sid = None
-    audio_buffer = b""
-    last_process_time = time.time()
+    last_ping = time.time()
 
     try:
         while True:
             data = await ws.receive_text()
-            msg = json.loads(data)
 
+            # 👇 IMPORTANT: keep connection alive
+            if time.time() - last_ping > 5:
+                await ws.send_text(json.dumps({"event": "ping"}))
+                last_ping = time.time()
+
+            msg = json.loads(data)
             event = msg.get("event")
 
             if event == "start":
-                call_sid = msg.get("start", {}).get("callSid")
-                print(f"📞 Call started: {call_sid}")
+                print("📞 Call started")
 
             elif event == "media":
-                payload = msg.get("media", {}).get("payload")
-
-                if payload:
-                    mulaw_chunk = base64.b64decode(payload)
-                    pcm_chunk = audioop.ulaw2lin(mulaw_chunk, 2)
-                    audio_buffer += pcm_chunk
-
-                    # 🔥 PROCESS FASTER (0.8 sec instead of 2 sec)
-                    if time.time() - last_process_time > 0.8:
-                        if len(audio_buffer) > 8000:
-                            try:
-                                with tempfile.NamedTemporaryFile(suffix=".wav") as f:
-                                    with wave.open(f, "wb") as wf:
-                                        wf.setnchannels(1)
-                                        wf.setsampwidth(2)
-                                        wf.setframerate(8000)
-                                        wf.writeframes(audio_buffer)
-
-                                    segments, _ = whisper_model.transcribe(
-                                        f.name,
-                                        beam_size=1,   # 🔥 faster
-                                        vad_filter=True
-                                    )
-
-                                    for segment in segments:
-                                        text = segment.text.strip()
-
-                                        if len(text) > 2:
-                                            print(f"🗣️ {text}")
-
-                                            reply = get_qwen_reply(call_sid, text)
-                                            print(f"🤖 {reply}")
-
-                                audio_buffer = b""
-                                last_process_time = time.time()
-
-                            except Exception as e:
-                                print("Whisper error:", e)
+                # just consume audio (no processing for now)
+                pass
 
             elif event == "stop":
-                print(f"📴 Call ended: {call_sid}")
+                print("📴 Call ended")
                 break
 
     except WebSocketDisconnect:
