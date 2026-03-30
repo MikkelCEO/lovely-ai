@@ -241,12 +241,13 @@ async def twilio_respond(request: Request):
     )
 
 # =========================================
-# AUDIO (WEBSOCKET - MEDIA STREAM READY)
+# AUDIO (WEBSOCKET - BUFFER + WHISPER)
 # =========================================
 
 from fastapi import WebSocket, WebSocketDisconnect
 import json
 import base64
+import tempfile
 
 @app.websocket("/audio")
 async def audio_stream(ws: WebSocket):
@@ -254,6 +255,7 @@ async def audio_stream(ws: WebSocket):
     print("🔌 Twilio Media Stream connected")
 
     call_sid = None
+    audio_buffer = b""
 
     try:
         while True:
@@ -270,18 +272,27 @@ async def audio_stream(ws: WebSocket):
                 payload = msg.get("media", {}).get("payload")
 
                 if payload:
-                    audio_bytes = base64.b64decode(payload)
+                    audio_chunk = base64.b64decode(payload)
+                    audio_buffer += audio_chunk
 
-                    try:
-                        segments, _ = whisper_model.transcribe(audio_bytes)
+                    # Only process every ~1 second of audio
+                    if len(audio_buffer) > 8000:
+                        try:
+                            with tempfile.NamedTemporaryFile(suffix=".wav") as f:
+                                f.write(audio_buffer)
+                                f.flush()
 
-                        for segment in segments:
-                            text = segment.text.strip()
-                            if text:
-                                print(f"🗣️ {text}")
+                                segments, _ = whisper_model.transcribe(f.name)
 
-                    except Exception as e:
-                        print("Whisper error:", e)
+                                for segment in segments:
+                                    text = segment.text.strip()
+                                    if text:
+                                        print(f"🗣️ {text}")
+
+                            audio_buffer = b""
+
+                        except Exception as e:
+                            print("Whisper error:", e)
 
             elif event == "stop":
                 print(f"📴 Call ended: {call_sid}")
